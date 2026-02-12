@@ -1,1 +1,589 @@
+<!-- index.html (FULL REPLACE v25) -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <meta name="theme-color" content="#e9e9ea"/>
+  <title>Song Rider Pro</title>
+  <link rel="manifest" href="./manifest.webmanifest?v=25"/>
 
+  <style>
+    :root{
+      --bg:#e9e9ea;
+      --card:#ffffff;
+      --ink:#151515;
+      --muted:#666;
+      --shadow: 0 10px 24px rgba(0,0,0,.10);
+      --radius:16px;
+
+      --beatHL:#ffd54a;
+
+      --noteBlue:#5CE1FF;
+      --lyricPink:#FF5FB8;
+      --backbeatGreen:#86EFAC;
+
+      --dangerRed:#dc2626;
+
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Liberation Sans", sans-serif;
+
+      --eyeX1: 18px;
+      --eyeX2: 30px;
+      --eyeY: 14px;
+    }
+
+    *{ box-sizing:border-box; }
+    body{ margin:0; font-family:var(--sans); background:var(--bg); color:var(--ink); }
+
+    header{
+      position:sticky; top:0; z-index:50;
+      background:linear-gradient(#efeff1, #e9e9ea);
+      border-bottom:1px solid rgba(0,0,0,.08);
+      padding:10px 12px 10px;
+    }
+    .topRow{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .brand h1{ margin:0; font-size:20px; letter-spacing:.2px; }
+    .brand .sub{ margin-top:2px; font-size:12px; color:var(--muted); font-weight:900; }
+
+    .headshotFloat{
+      position:fixed; top:10px; right:10px;
+      width:56px; height:56px;
+      z-index:999;
+      pointer-events:none;
+    }
+    .headshotFloat img{
+      width:100%; height:100%;
+      object-fit:contain;
+      border-radius:999px;
+      opacity:.98;
+      filter: drop-shadow(0 10px 18px rgba(0,0,0,.20));
+      background:transparent;
+    }
+    .eye{
+      position:absolute;
+      width:10px; height:10px;
+      border-radius:999px;
+      background:rgba(255,0,0,.05);
+      opacity:0;
+      transition:opacity 60ms linear, box-shadow 60ms linear;
+      top: var(--eyeY);
+    }
+    .eye.left{ left: var(--eyeX1); }
+    .eye.right{ left: var(--eyeX2); }
+    .headshotFloat.blink .eye{
+      opacity:1;
+      background:rgba(255,0,0,.90);
+      box-shadow: 0 0 14px rgba(255,0,0,.85);
+    }
+
+    .panel{
+      margin-top:10px;
+      background:var(--card);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      border:1px solid rgba(0,0,0,.06);
+      overflow:hidden;
+    }
+    .panelTop{
+      padding:10px 12px;
+      border-bottom:1px solid rgba(0,0,0,.06);
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+    }
+    .panelTop .left{
+      font-weight:1100; font-size:12px; letter-spacing:.3px;
+      color:#111;
+    }
+
+    .miniBar{ display:none; padding:10px 12px; border-bottom:1px solid rgba(0,0,0,.06); }
+    .miniBar.show{ display:block; }
+
+    #panelBody{ max-height:28vh; overflow:auto; -webkit-overflow-scrolling: touch; }
+    #panelBody.hidden{ display:none; }
+
+    .row{
+      padding:10px 12px;
+      display:flex;
+      gap:8px;
+      align-items:center;
+      flex-wrap:wrap;
+      overflow-x:hidden;
+    }
+    .row.nowrap{
+      flex-wrap:nowrap;
+      overflow-x:hidden;
+    }
+
+    .pill{
+      border:1px solid #111;
+      background:#111;
+      border-radius:999px;
+      padding:7px 9px;
+      font-weight:1100;
+      font-size:13px;
+      cursor:pointer;
+      user-select:none;
+      white-space:nowrap;
+      height:34px;
+      flex:0 0 auto;
+      color:#fff;
+    }
+    .pill.active{
+      background:#16a34a;
+      border-color:#16a34a;
+      color:#fff;
+    }
+
+    .tinyBtn{
+      border:1px solid rgba(0,0,0,.12);
+      background:#fff;
+      border-radius:12px;
+      padding:7px 9px;
+      font-weight:1100;
+      font-size:13px;
+      cursor:pointer;
+      user-select:none;
+      white-space:nowrap;
+      height:34px;
+      flex:0 0 auto;
+      color:#111;
+    }
+    .tinyBtn.active{ background:#111; color:#fff; border-color:#111; }
+
+    .tinyField input{
+      width:70px;
+      padding:7px 8px;
+      border-radius:12px;
+      border:1px solid rgba(0,0,0,.12);
+      background:#fff;
+      font-size:13px;
+      outline:none;
+      height:34px;
+      text-align:center;
+    }
+    .tinyField.key input{
+      width:92px;
+      text-align:center;
+      padding-left:0;
+    }
+    .tinyField input[readonly]{ background:#f6f6f7; }
+
+    .scrollIconBtn{
+      width:40px;
+      padding:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:16px;
+      font-weight:1300;
+      border-radius:12px;
+      border:1px solid #111;
+      background:#111;
+      color:#fff;
+      height:34px;
+      flex:0 0 auto;
+      user-select:none;
+      cursor:pointer;
+    }
+    .scrollIconBtn.on{
+      background:#16a34a;
+      border-color:#16a34a;
+    }
+
+    .btn{
+      border:none;
+      border-radius:12px;
+      padding:9px 11px;
+      font-weight:1100;
+      background:#111827;
+      color:#fff;
+      cursor:pointer;
+      user-select:none;
+      white-space:nowrap;
+      height:34px;
+      flex:0 0 auto;
+    }
+    .btn.secondary{
+      background:#fff;
+      color:#111;
+      border:1px solid rgba(0,0,0,.12);
+    }
+    .btn.rec{ background:var(--dangerRed); }
+
+    .iconCircle{
+      width:34px; height:34px;
+      border-radius:999px;
+      display:flex; align-items:center; justify-content:center;
+      border:1px solid rgba(0,0,0,.12);
+      background:#fff;
+      font-size:16px;
+      flex:0 0 auto;
+      cursor:pointer;
+      user-select:none;
+    }
+
+    .tabs{
+      display:flex;
+      gap:8px;
+      flex-wrap:nowrap;
+      overflow-x:auto;
+      -webkit-overflow-scrolling: touch;
+      margin:12px 0 10px;
+      padding-bottom:2px;
+    }
+    .tabs.hidden{ display:none; }
+    .tab{
+      padding:10px 12px;
+      border-radius:999px;
+      border:1px solid rgba(0,0,0,.12);
+      background:#fff;
+      cursor:pointer;
+      user-select:none;
+      font-weight:1100;
+      font-size:13px;
+      flex:0 0 auto;
+      white-space:nowrap;
+    }
+    .tab.active{ background:#111; color:#fff; border-color:#111; }
+
+    main{ padding:12px 12px 110px; max-width:1100px; margin:0 auto; }
+
+    .sheet{
+      background:var(--card);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      border:1px solid rgba(0,0,0,.06);
+      overflow:hidden;
+      min-height:220px;
+    }
+    .sheetHeader{
+      padding:10px 12px;
+      border-bottom:1px solid rgba(0,0,0,.06);
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      flex-wrap:wrap;
+    }
+    .sheetHeader h2{ margin:0; font-size:14px; font-weight:1100; letter-spacing:.3px; }
+    .hint{ font-size:12px; color:var(--muted); font-weight:900; }
+
+    .sheetActions{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+
+    .cards{
+      padding:0 12px 14px;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+    .card{
+      border:1px solid rgba(0,0,0,.10);
+      border-radius:14px;
+      background:#fff;
+      padding:10px;
+    }
+
+    .cardTop{
+      display:flex; align-items:center; gap:10px;
+      flex-wrap:wrap;
+      margin-bottom:8px;
+    }
+    .cardNum{
+      font-weight:1100;
+      font-size:12px;
+      background:#fff;
+      border:1px solid rgba(0,0,0,.12);
+      border-radius:999px;
+      padding:6px 10px;
+      min-width:40px;
+      text-align:center;
+      cursor:pointer;
+      user-select:none;
+    }
+    .syllPill{
+      font-weight:1100;
+      font-size:12px;
+      padding:6px 10px;
+      border-radius:999px;
+      color:#fff;
+      border:1px solid rgba(0,0,0,.12);
+      background:var(--dangerRed);
+      max-width:100%;
+    }
+
+    .notesRow{
+      display:grid;
+      grid-template-columns: repeat(8, minmax(0, 1fr));
+      gap:6px;
+      margin-bottom:8px;
+    }
+    .noteCell{
+      border-radius:10px;
+      border:1px solid rgba(0,0,0,.18);
+      background:var(--noteBlue);
+      padding:8px 6px;
+      font-family:var(--mono);
+      font-size:12px;
+      text-align:center;
+      outline:none;
+      height:34px;
+      -webkit-appearance:none;
+      appearance:none;
+    }
+
+    textarea.lyrics{
+      width:100%;
+      resize:vertical;
+      min-height:46px;
+      max-height:180px;
+      padding:10px;
+      border-radius:12px;
+      border:1px solid rgba(0,0,0,.18);
+      font-size:14px;
+      outline:none;
+      background:var(--lyricPink);
+      color:#111;
+      margin-bottom:10px;
+    }
+
+    .beatsRow{
+      display:grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap:10px;
+    }
+    textarea.beatCell{
+      width:100%;
+      border-radius:14px;
+      border:1px solid rgba(0,0,0,.14);
+      background:#fff;
+      padding:10px 8px;
+      font-family:var(--mono);
+      font-size:14px;
+      font-weight:900;
+      text-align:center;
+      outline:none;
+      min-height:52px;
+      line-height:1.15;
+      resize:none;
+      overflow:hidden;
+      white-space:pre-wrap;
+      word-break:break-word;
+    }
+    .beatsRow textarea.beatCell:nth-child(2),
+    .beatsRow textarea.beatCell:nth-child(4){
+      background:var(--backbeatGreen);
+    }
+
+    .tick{
+      box-shadow: 0 0 0 4px rgba(255,213,74,.90) inset, 0 0 0 2px rgba(0,0,0,.06);
+      outline: none;
+    }
+
+    .fullBoxWrap{ padding:12px; display:flex; flex-direction:column; gap:10px; }
+    .fullLabel{
+      font-size:12px;
+      font-weight:1000;
+      color:#333;
+    }
+    textarea.fullBox{
+      width:100%;
+      min-height:22vh;
+      padding:12px;
+      border-radius:14px;
+      border:1px solid rgba(0,0,0,.12);
+      background:#fff;
+      font-family:var(--mono);
+      font-size:14px;
+      outline:none;
+      line-height:1.35;
+      white-space:pre-wrap;
+      word-break:break-word;
+      overflow-wrap:anywhere;
+    }
+    textarea.fullPreview{
+      width:100%;
+      min-height:22vh;
+      padding:12px;
+      border-radius:14px;
+      border:1px solid rgba(0,0,0,.12);
+      background:#f7f7f8;
+      font-family:var(--mono);
+      font-size:14px;
+      outline:none;
+      line-height:1.35;
+      white-space:pre-wrap;
+      word-break:break-word;
+      overflow-wrap:anywhere;
+    }
+
+    .rBtn{
+      position:fixed;
+      right:14px;
+      bottom:18px;
+      z-index:250;
+      width:52px;height:52px;
+      border-radius:999px;
+      border:1px solid rgba(0,0,0,.12);
+      background:#111;
+      color:#fff;
+      font-weight:1200;
+      font-size:18px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      box-shadow:0 14px 30px rgba(0,0,0,.25);
+      cursor:pointer;
+      user-select:none;
+    }
+
+    .rhymeDock{
+      position:fixed;
+      left:0; right:0; bottom:0;
+      z-index:260;
+      display:none;
+      padding:0 12px 10px;
+    }
+    .rhymeBox{
+      max-width:1100px;
+      margin:0 auto;
+      background:#fff;
+      border:1px solid rgba(0,0,0,.10);
+      border-radius:16px;
+      box-shadow:0 12px 28px rgba(0,0,0,.18);
+      overflow:hidden;
+    }
+    .rhymeTop{
+      padding:10px 12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      border-bottom:1px solid rgba(0,0,0,.06);
+      font-weight:1100;
+    }
+    .rhymeWords{
+      padding:10px 12px 12px;
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    .rWord{
+      border:1px solid rgba(0,0,0,.12);
+      background:#fff;
+      border-radius:999px;
+      padding:7px 10px;
+      font-weight:1000;
+      cursor:pointer;
+      user-select:none;
+      font-size:13px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="headshotFloat" id="headshotWrap">
+    <img id="headshotImg" src="./headshot.png?v=25" alt="Headshot"/>
+    <div class="eye left"></div>
+    <div class="eye right"></div>
+  </div>
+
+<header>
+  <div class="topRow">
+    <div class="brand">
+      <h1>Song Rider Pro</h1>
+      <div class="sub">Chords/notes • timing • lyrics • sections</div>
+    </div>
+    <div style="width:56px;height:56px;"></div>
+  </div>
+
+  <div class="panel">
+    <div class="panelTop">
+      <div class="left">PROJECTS • CONTROLS • DRUMS • RECORDINGS</div>
+      <button class="btn secondary" id="togglePanelBtn">Hide</button>
+    </div>
+
+    <div class="miniBar" id="miniBar">
+      <div class="row nowrap" style="padding:0;">
+        <button class="pill" id="mRock">Rock</button>
+        <button class="pill" id="mHardRock">Hard Rock</button>
+        <button class="pill" id="mPop">Pop</button>
+        <button class="pill" id="mRap">Rap</button>
+
+        <button class="scrollIconBtn" id="mScrollBtn" title="AutoScroll">⇅</button>
+        <button class="btn rec" id="mRecordBtn">Record</button>
+      </div>
+    </div>
+
+    <div id="panelBody">
+      <div class="row">
+        <button class="tinyBtn" id="autoSplitBtn">AutoSplit</button>
+        <div class="tinyField"><input id="bpmInput" type="number" min="40" max="220" step="1" value="95"/></div>
+        <div class="tinyField"><input id="capoInput" type="number" min="0" max="12" step="1" value="0"/></div>
+        <div class="tinyField key"><input id="keyOutput" type="text" readonly value="—"/></div>
+      </div>
+
+      <div class="row" style="border-top:1px solid rgba(0,0,0,.06);">
+        <button class="pill" id="instAcoustic">Acoustic</button>
+        <button class="pill" id="instElectric">Electric</button>
+        <button class="pill" id="instPiano">Piano</button>
+      </div>
+
+      <div class="row nowrap" style="border-top:1px solid rgba(0,0,0,.06);">
+        <button class="pill" id="drumRock">Rock</button>
+        <button class="pill" id="drumHardRock">Hard Rock</button>
+        <button class="pill" id="drumPop">Pop</button>
+        <button class="pill" id="drumRap">Rap</button>
+
+        <button class="scrollIconBtn" id="autoPlayBtn" title="AutoScroll">⇅</button>
+        <button class="btn rec" id="recordBtn">Record</button>
+      </div>
+
+      <div class="row" style="display:flex;align-items:center;gap:10px;flex-wrap:nowrap;border-top:1px solid rgba(0,0,0,.06);">
+        <select id="sortSelect" style="padding:8px 10px;border-radius:12px;border:1px solid rgba(0,0,0,.12);font-weight:900;height:34px;">
+          <option value="az">A–Z</option>
+          <option value="recent">Recent</option>
+        </select>
+
+<select id="projectSelect" style="padding:8px 10px;border-radius:12px;border:1px solid rgba(0,0,0,.12);font-weight:900;height:34px;flex:1;min-width:0;"></select>
+        <button class="iconCircle" id="newProjectBtn" title="New Project">＋</button>
+        <button class="iconCircle" id="renameProjectBtn" title="Rename Project">✏️</button>
+        <button class="iconCircle" id="deleteProjectBtn" title="Delete Project">Ⓧ</button>
+      </div>
+
+      <div class="row" style="align-items:flex-start;border-top:1px solid rgba(0,0,0,.06);">
+        <div id="recordingsList" style="flex:1 1 auto;display:flex;flex-direction:column;gap:8px;width:100%;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs" id="tabs"></div>
+</header>
+
+<main>
+  <div class="sheet" id="editorRoot">
+    <div class="sheetHeader">
+      <h2 id="sheetTitle">Full</h2>
+      <div class="sheetActions" id="sheetActions"></div>
+      <div class="hint" id="sheetHint"></div>
+    </div>
+    <div id="sheetBody"></div>
+  </div>
+</main>
+
+<div class="rBtn" id="rBtn">R</div>
+
+<div class="rhymeDock" id="rhymeDock">
+  <div class="rhymeBox">
+    <div class="rhymeTop">
+      <div id="rhymeTitle">Rhymes</div>
+      <button class="btn secondary" id="hideRhymeBtn">Hide</button>
+    </div>
+    <div class="rhymeWords" id="rhymeWords"></div>
+  </div>
+</div>
+
+<script src="./app.js?v=999"></script>
+</body>
+</html>
