@@ -1,4 +1,4 @@
-/* app.js (FULL REPLACE v27) */
+/* app.js (FULL REPLACE v28) */
 (() => {
   "use strict";
 
@@ -1392,34 +1392,25 @@
     return words.length ? words[words.length - 1] : "";
   }
 
+  // ✅ FIX: ALWAYS rhyme from previous card's last word (not the current box)
   function getSeedFromTextarea(ta){
     if(!ta) return "";
 
-    const currentText = String(ta.value||"");
-    const pos = (typeof ta.selectionStart === "number") ? ta.selectionStart : currentText.length;
-    const upto = currentText.slice(0, pos);
-
-    if(!currentText.trim()){
-      const card = ta.closest(".card");
-      if(card){
-        const allCards = Array.from(el.sheetBody.querySelectorAll(".card"));
-        const idx = allCards.indexOf(card);
-        const prev = allCards[idx - 1];
-        if(prev){
-          const prevTa = prev.querySelector("textarea.lyrics");
-          const prevLast = getLastWord(prevTa ? prevTa.value : "");
-          if(prevLast) return prevLast;
-        }
+    const card = ta.closest(".card");
+    if(card){
+      const allCards = Array.from(el.sheetBody.querySelectorAll(".card"));
+      const idx = allCards.indexOf(card);
+      const prev = allCards[idx - 1];
+      if(prev){
+        const prevTa = prev.querySelector("textarea.lyrics");
+        const prevLast = getLastWord(prevTa ? prevTa.value : "");
+        if(prevLast) return prevLast;
       }
-      return "";
     }
 
-    const words = upto.match(/[A-Za-z']+/g) || [];
-    if(words.length === 0) return "";
-
-    const endsWithLetter = /[A-Za-z']$/.test(upto);
-    if(endsWithLetter && words.length >= 2) return words[words.length - 2];
-    return words[words.length - 1];
+    // If there is no previous card (first line), fall back gracefully:
+    const currentLast = getLastWord(String(ta.value||""));
+    return currentLast || "";
   }
 
   async function fetchDatamuseRhymes(word, max = 24){
@@ -1597,7 +1588,7 @@
     el.bpmInput.addEventListener("change", commitBpm);
     el.bpmInput.addEventListener("blur", commitBpm);
 
-    // ✅ CAPO (FIX: persist immediately so it can’t “snap back”)
+    // ✅ CAPO (persist immediately so it can’t “snap back”)
     function commitCapo(){
       let n = parseInt(el.capoInput.value, 10);
       if(!Number.isFinite(n)) n = 0;
@@ -1625,7 +1616,7 @@
 
       const n = clamp(n0, 0, 12);
 
-      // ✅ update state + persist immediately
+      // update state + persist immediately
       state.capo = n;
       if(state.project){
         state.project.capo = n;
