@@ -164,7 +164,7 @@ const LS_CUR = "songrider_TEST_currentProjectId";
   fullText: "",
   sections
 };
-
+  }
   function loadAllProjects(){
     try{
       const raw = localStorage.getItem(LS_KEY);
