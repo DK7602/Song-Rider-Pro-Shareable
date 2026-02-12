@@ -985,15 +985,35 @@ inp.value = (state.capo ? transposeNoteName(raw, state.capo) : raw);
         inp.addEventListener("pointerdown", (e)=>{ e.stopPropagation(); });
 
         inp.addEventListener("focus", () => {
-          lastActiveCardEl = card;
-        });
+  lastActiveCardEl = card;
+  // show raw note while editing
+  inp.value = inp.dataset.raw || "";
+});
 
-        inp.addEventListener("input", () => {
-          line.notes[i] = String(inp.value || "").trim();
-          upsertProject(state.project);
-          updateKeyFromAllNotes();
-          updateFullIfVisible();
-        });
+inp.addEventListener("input", () => {
+  const rawNow = String(inp.value || "").trim();
+  inp.dataset.raw = rawNow;
+  line.notes[i] = rawNow;
+
+  upsertProject(state.project);
+  updateKeyFromAllNotes();
+  updateFullIfVisible();
+});
+
+inp.addEventListener("blur", () => {
+  const rawNow = String(inp.value || "").trim();
+  inp.dataset.raw = rawNow;
+  line.notes[i] = rawNow;
+
+  upsertProject(state.project);
+  updateKeyFromAllNotes();
+  updateFullIfVisible();
+
+  // show transposed again after editing
+  inp.value = (state.capo
+    ? transposeNoteName(rawNow, state.capo)
+    : rawNow);
+});
 
         notesRow.appendChild(inp);
       }
