@@ -1870,7 +1870,9 @@ function nextNonBlankCardIndexAfter(currentIdx){
 }
 
 // Check project DATA (not DOM) so we can decide next section without rendering
+function lineHasContentData(line){
   if(!line || typeof line !== "object") return false;
+
   const lyr = String(line.lyrics || "").trim();
   if(lyr) return true;
 
@@ -1878,6 +1880,12 @@ function nextNonBlankCardIndexAfter(currentIdx){
   for(const n of notes){
     if(String(n || "").trim()) return true;
   }
+
+  const beats = Array.isArray(line.beats) ? line.beats : [];
+  for(const b of beats){
+    if(String(b || "").trim()) return true;
+  }
+
   return false;
 }
 
