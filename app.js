@@ -189,7 +189,7 @@ function lineHasContent(line){
 function defaultProject(name="New Song"){
   const sections = {};
   SECTIONS.filter(s=>s!=="Full").forEach(sec => {
-    sections[sec] = Array.from({length: DEFAULT_LINES_PER_SECTION}, () => newLine());
+    sections[sec] = [ newLine() ]; // ✅ start with ONE card
   });
   return {
     id: uuid(),
