@@ -2389,36 +2389,23 @@ function startDrums(){
       // Hats: mostly 8ths with velocity movement + occasional doubles
       const isHatStep = (s % 2 === 0); // 8ths
       if(isHatStep){
-        // offbeats a little louder
         const offbeat = (s % 4 === 2);
         const vel = offbeat ? 0.95 : 0.75;
         drumHit("hat", vel);
       }
 
-      // occasional 16th hat doubles (gives “nasty” feel)
+      // occasional 16th hat doubles
       if(s === 7 || s === 15){
-        setTimeout(() => {
-          if(state.drumsOn && state.drumStyle === "rap") drumHit("hat", 0.65);
-        }, 35);
-        setTimeout(() => {
-          if(state.drumsOn && state.drumStyle === "rap") drumHit("hat", 0.55);
-        }, 70);
+        setTimeout(()=>{ if(state.drumsOn && state.drumStyle==="rap") drumHit("hat", 0.65); }, 35);
+        setTimeout(()=>{ if(state.drumsOn && state.drumStyle==="rap") drumHit("hat", 0.55); }, 70);
       }
     }
-
-    // (optional) add rock/pop/hardrock patterns here later...
 
     step++;
   }, stepMs);
 }
 
-function stopInstrument(){
-  state.instrumentOn = false;
-  state.audioToken++; // cancels pending strum timeouts
-  updateClock();
-}
-
-
+// --- instrument toggles (unchanged, just placed AFTER properly closed startDrums) ---
 function stopInstrument(){
   state.instrumentOn = false;
   state.audioToken++; // cancels pending strum timeouts
@@ -2431,7 +2418,6 @@ function startInstrument(){
   state.audioToken++; // new generation
   updateClock();
 }
-
 
 /***********************
 UI helpers
