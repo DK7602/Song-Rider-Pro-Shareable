@@ -3888,22 +3888,44 @@ function prevSection(){
 /***********************
 Swipe detection (horizontal)
 ***********************/
+.abs(dx) < MIN_X) return;
 function installSectionSwipe(){
   let sx=0, sy=0, t0=0, tracking=false, locked=false;
   let lastFire = 0;
+  let startedOnEditable = false;
 
-  const MIN_X = 60;
   const MAX_MS = 800;
   const DOMINANCE = 1.35;
 
+  function isControlEl(target){
+    if(!target) return false;
+    const tag = (target.tagName || "").toUpperCase();
+    // These are the ones we truly never want to swipe-page on:
+    return (tag === "BUTTON" || tag === "SELECT");
+  }
+
+  function isEditableStart(target){
+    if(!target) return false;
+    const tag = (target.tagName || "").toUpperCase();
+    if(tag === "INPUT" || tag === "TEXTAREA") return true;
+    if(target.isContentEditable) return true;
+    return false;
+  }
+
   function onStart(e){
+    // don’t page-switch when rhyme dock is open
     if(el.rhymeDock && el.rhymeDock.style.display === "block") return;
 
     const pt = (e.touches && e.touches[0]) ? e.touches[0] : e;
     const target = e.target;
 
-    // don’t page-switch when starting on controls or inside the panel
-    if(isEditableEl(target) || (target && target.closest && target.closest("#panelBody"))) return;
+    // don’t page-switch when starting inside the top panel area
+    if(target && target.closest && target.closest("#panelBody")) return;
+
+    // don’t page-switch on real controls (buttons/selects)
+    if(isControlEl(target)) return;
+
+    startedOnEditable = isEditableStart(target);
 
     sx = pt.clientX; sy = pt.clientY; t0 = performance.now();
     tracking = true;
@@ -3918,9 +3940,11 @@ function installSectionSwipe(){
     const dy = pt.clientY - sy;
 
     if(!locked){
+      // lock horizontal swipe if it clearly dominates
       if(Math.abs(dx) > 14 && Math.abs(dx) > Math.abs(dy) * DOMINANCE){
         locked = true;
       }else if(Math.abs(dy) > 18 && Math.abs(dy) > Math.abs(dx)){
+        // user is scrolling vertically -> cancel swipe tracking
         tracking = false;
         return;
       }
@@ -3937,6 +3961,10 @@ function installSectionSwipe(){
     const dt = performance.now() - t0;
 
     if(dt > MAX_MS) return;
+
+    // ✅ If swipe started on a text field, require a bigger swipe so typing/scrolling doesn’t accidentally page
+    const MIN_X = startedOnEditable ? 110 : 60;
+
     if(Math.abs(dx) < MIN_X) return;
     if(Math.abs(dx) < Math.abs(dy) * DOMINANCE) return;
 
@@ -3948,10 +3976,12 @@ function installSectionSwipe(){
     else prevSection();
   }
 
+  // Touch
   document.addEventListener("touchstart", onStart, { passive:true });
   document.addEventListener("touchmove", onMove, { passive:true });
   document.addEventListener("touchend", onEnd, { passive:true });
 
+  // Pointer (desktop)
   document.addEventListener("pointerdown", onStart, { passive:true });
   document.addEventListener("pointermove", onMove, { passive:true });
   document.addEventListener("pointerup", onEnd, { passive:true });
@@ -3963,7 +3993,6 @@ function installSectionSwipe(){
     if(e.key === "ArrowRight") nextSection();
   });
 }
-
 /***********************
 Wiring
 ***********************/
