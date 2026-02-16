@@ -156,7 +156,15 @@ const MIN_LINES_PER_SECTION = 1;
 /***********************
 Project storage (MAIN)
 ***********************/
-const LS_KEY = "songrider_v25_projects";
+function newLine(){
+  return {
+    id: uuid(),
+    notes: Array(8).fill(""),
+    lyrics: "",
+    beats: Array(4).fill("")
+  };
+}
+  const LS_KEY = "songrider_v25_projects";
 const LS_CUR = "songrider_v25_currentProjectId";
 
 function lineHasContent(line){
