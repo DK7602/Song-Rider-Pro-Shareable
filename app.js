@@ -3475,7 +3475,8 @@ function updateAudioButtonsUI(){
 
   // ✅ Upload button becomes STOP while syncing
   if(el.uploadAudioBtn){
-    el.uploadAudioBtn.textContent = state.audioSyncOn ? "Stop" : "Upload";
+   el.uploadAudioBtn.textContent = state.audioSyncOn ? "⏹" : "⬆️";
+
   }
 }
   function renderAll(){
