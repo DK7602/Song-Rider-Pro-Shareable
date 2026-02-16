@@ -2201,6 +2201,7 @@ function renderDrumUI(){
 
 function setAutoScroll(on){
   state.autoScrollOn = !!on;
+
   $("autoPlayBtn")?.classList.toggle("on", state.autoScrollOn);
   $("mScrollBtn")?.classList.toggle("on", state.autoScrollOn);
 
@@ -2209,6 +2210,9 @@ function setAutoScroll(on){
     if(state.currentSection === "Full"){
       switchToSectionForAuto("VERSE 1");
     }
+
+    // reset section-advance guard so the first bar advance is clean
+    state.lastAutoBar = -1;
 
     // Try to anchor to the current playline card
     const cards = getCards();
@@ -2226,17 +2230,26 @@ function setAutoScroll(on){
       const tgt = cards[state.playCardIndex];
       if(tgt && !cardIsBlank(tgt)) scrollCardIntoView(tgt);
     }else{
-    state.playCardIndex = null;
-    state.lastAutoBar = -1;
-
-    // If MP3 sync is playing, stop the highlight immediately when AutoScroll OFF
-    clearTick();
+      state.playCardIndex = null;
     }
+
+    // show an immediate tick (then the clock keeps it moving)
+    clearTick();
+    applyTick();
 
   }else{
     state.playCardIndex = null;
+
+    // If MP3 sync is playing, stop the highlight immediately when AutoScroll OFF
+    if(state.audioSyncOn){
+      clearTick();
+    }
   }
+
+  // ✅ THIS IS THE MISSING PIECE: start/stop the beat clock based on AutoScroll
+  updateClock();
 }
+
 
 
 function setPanelHidden(hidden){
