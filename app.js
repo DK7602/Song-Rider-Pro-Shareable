@@ -3222,7 +3222,7 @@ async function startAudioSyncFromRec(rec){
   state.audioSyncOn = true;
   state.audioSyncRecId = rec.id;
   state.audioSyncOffsetSec = Number(rec.offsetSec || 0) || 0;
-updateAudioButtonsUI();
+  updateAudioButtonsUI();
 
   const url = URL.createObjectURL(rec.blob);
   state.audioSyncUrl = url;
@@ -3276,13 +3276,14 @@ updateAudioButtonsUI();
   }catch(e){
     alert("Couldn't play audio. (Browser blocked playback.) Tap a button again to allow audio.");
     state.audioSyncOn = false;
+    updateAudioButtonsUI();
     return;
   }
 
-state.lastAudioTick8 = -1;
-state.lastHorseBar = -1; // ✅ reset for MP3 sync too
-state.audioSyncRaf = requestAnimationFrame(audioSyncFrame);
-
+  state.lastAudioTick8 = -1;
+  state.lastHorseBar = -1; // ✅ reset for MP3 sync too
+  state.audioSyncRaf = requestAnimationFrame(audioSyncFrame);
+} // ✅ IMPORTANT: this closing brace was missing in your file
 
 
 function pickBestMimeType(){
@@ -3377,7 +3378,6 @@ async function startRecording(){
   setRecordUI();
 }
 
-
 async function stopRecording(){
   if(!state.rec) return;
   try{ state.rec.stop(); }catch{}
@@ -3395,6 +3395,7 @@ async function toggleRecording(){
     alert("Recording failed. Make sure mic permission is allowed for this site.");
   }
 }
+
 
 /***********************
 Projects dropdown
