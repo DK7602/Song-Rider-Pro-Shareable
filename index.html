@@ -83,6 +83,19 @@
       animation-timing-function: linear;
       animation-fill-mode: both;
     }
+/* FULL page: push preview to the bottom */
+.fullPreviewBlock{
+  margin-top:auto;              /* <-- this is the magic */
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+/* let the FULL PAGE box take remaining space */
+textarea.fullBox{
+  flex:1;
+  min-height:0;                 /* important for flex layouts */
+}
 
     .panel{
       margin-top:0;
