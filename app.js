@@ -2846,6 +2846,37 @@ wrap.appendChild(previewBlock);
 
     const card = document.createElement("div");
     card.className = "card";
+    
+    // ✅ Delete button (top-right)
+    const delBtn = document.createElement("button");
+    delBtn.className = "cardDel";
+    delBtn.type = "button";
+    delBtn.textContent = "×";
+    delBtn.title = "Delete this card";
+
+    delBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // If it's the only card, clear it instead of deleting
+      if(arr.length <= 1){
+        if(!confirm("Clear this card?")) return;
+        arr[0] = newLine();
+      }else{
+        if(!confirm(`Delete card ${idx+1} from ${state.currentSection}?`)) return;
+        arr.splice(idx, 1);
+      }
+
+      upsertProject(state.project);
+      renderSheet();
+      updateFullIfVisible();
+      updateKeyFromAllNotes();
+      clearTick(); applyTick();
+      refreshDisplayedNoteCells();
+      refreshRhymesFromActive();
+    });
+
+    card.appendChild(delBtn);
 
     const top = document.createElement("div");
     top.className = "cardTop";
@@ -2853,31 +2884,7 @@ wrap.appendChild(previewBlock);
     const num = document.createElement("div");
     num.className = "cardNum";
     num.textContent = String(idx + 1);
-    num.title = "Long-press to delete this line";
-
-    let pressTimer = null;
-    const startPress = () => {
-      clearTimeout(pressTimer);
-      pressTimer = setTimeout(() => {
-        if(!confirm(`Delete line ${idx+1} from ${state.currentSection}?`)) return;
-        arr.splice(idx, 1);
-        upsertProject(state.project);
-        renderSheet();
-        updateFullIfVisible();
-        updateKeyFromAllNotes();
-        clearTick(); applyTick();
-        refreshDisplayedNoteCells();
-        refreshRhymesFromActive();
-      }, 650);
-    };
-    const endPress = () => clearTimeout(pressTimer);
-
-    num.addEventListener("touchstart", startPress, {passive:true});
-    num.addEventListener("touchend", endPress);
-    num.addEventListener("touchcancel", endPress);
-    num.addEventListener("mousedown", startPress);
-    num.addEventListener("mouseup", endPress);
-    num.addEventListener("mouseleave", endPress);
+    
 
     const syll = document.createElement("div");
     syll.className = "syllPill";
