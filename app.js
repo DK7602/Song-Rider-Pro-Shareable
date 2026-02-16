@@ -1467,10 +1467,33 @@ function refreshDisplayedNoteCells(){
 }
 
 /***********************
-ACTIVE CARD selection
+ACTIVE CARD selection (scroll-container aware)
 ***********************/
 
+// Returns the scrolling viewport element for cards (your #sheetBody)
+function getScrollViewport(){
+  // #sheetBody is now the scroll container (overflow:auto)
+  if(el.sheetBody){
+    try{
+      const cs = getComputedStyle(el.sheetBody);
+      if(cs && cs.overflowY && cs.overflowY !== "visible") return el.sheetBody;
+    }catch{}
+    // even if computedStyle fails, still use it
+    return el.sheetBody;
+  }
+  return null;
+}
+
+// Where the "play line" should be (top of the card viewport)
 function getHeaderBottomY(){
+  const vp = getScrollViewport();
+  if(vp){
+    const r = vp.getBoundingClientRect();
+    // play line = just inside the card scroller (not the sticky header)
+    return Math.round(r.top + 10);
+  }
+
+  // fallback: old behavior (window scroll)
   const hdr = document.querySelector("header");
   if(!hdr) return 86;
   const r = hdr.getBoundingClientRect();
@@ -1481,6 +1504,41 @@ function getCards(){
   return Array.from(el.sheetBody.querySelectorAll(".card"));
 }
 
+function getVisibleCards(){
+  const cards = getCards();
+  if(cards.length === 0) return [];
+
+  const vp = getScrollViewport();
+  if(!vp){
+    // fallback: window-based visibility
+    const topLine = getHeaderBottomY() - 18;
+    const bottomLine = window.innerHeight + 18;
+
+    const vis = [];
+    for(const c of cards){
+      const r = c.getBoundingClientRect();
+      if(r.bottom < topLine) continue;
+      if(r.top > bottomLine) continue;
+      vis.push(c);
+    }
+    return vis.length ? vis : [cards[0]];
+  }
+
+  // container-based visibility
+  const vpr = vp.getBoundingClientRect();
+  const topLine = vpr.top - 6;
+  const bottomLine = vpr.bottom + 6;
+
+  const vis = [];
+  for(const c of cards){
+    const r = c.getBoundingClientRect();
+    if(r.bottom < topLine) continue;
+    if(r.top > bottomLine) continue;
+    vis.push(c);
+  }
+  return vis.length ? vis : [cards[0]];
+}
+
 function getNearestVisibleCard(){
   const cards = getCards();
   if(cards.length === 0) return null;
@@ -1489,9 +1547,14 @@ function getNearestVisibleCard(){
   let best = null;
   let bestDist = Infinity;
 
+  const vp = getScrollViewport();
+  const limitTop = vp ? vp.getBoundingClientRect().top : 0;
+  const limitBot = vp ? vp.getBoundingClientRect().bottom : window.innerHeight;
+
   for(const c of cards){
     const r = c.getBoundingClientRect();
-    if(r.bottom < yLine || r.top > window.innerHeight) continue;
+    if(r.bottom < limitTop) continue;
+    if(r.top > limitBot) continue;
     const dist = Math.abs(r.top - yLine);
     if(dist < bestDist){
       bestDist = dist;
@@ -1503,7 +1566,6 @@ function getNearestVisibleCard(){
 
 /**
  * Choose the card the play-line is actually on.
- * Adds tolerance so we DON'T accidentally pick card #2 when card #1 is slightly under header.
  */
 function getCardAtPlayLine(){
   const cards = getCards();
@@ -1520,35 +1582,37 @@ function getCardAtPlayLine(){
   return getNearestVisibleCard() || cards[0];
 }
 
-/**
- * The card that playback should use.
- * - If auto-scroll ON: lock to playCardIndex
- * - If auto-scroll OFF: follow lastActiveCardEl
- */
-function getPlaybackCard(){
-  if(state.currentSection === "Full") return null;
+function scrollCardIntoView(card){
+  if(!card) return;
 
-  const cards = getCards();
-  if(cards.length === 0) return null;
+  const vp = getScrollViewport();
 
-  if(state.autoScrollOn){
-    if(
-      state.playCardIndex === null ||
-      state.playCardIndex < 0 ||
-      state.playCardIndex >= cards.length
-    ){
-      const cur = getCardAtPlayLine() || cards[0];
-      state.playCardIndex = Math.max(0, cards.indexOf(cur));
-    }
-    return cards[state.playCardIndex] || cards[0];
+  // ✅ NEW: scroll INSIDE #sheetBody (not window)
+  if(vp){
+    const vpr = vp.getBoundingClientRect();
+    const cr = card.getBoundingClientRect();
+
+    // put card near top of the viewport with a little padding
+    const desiredTop = vpr.top + 10;
+    const delta = cr.top - desiredTop;
+
+    vp.scrollTop = Math.max(0, Math.round(vp.scrollTop + delta));
+    return;
   }
 
-  if(lastActiveCardEl && document.contains(lastActiveCardEl)){
-    return lastActiveCardEl;
-  }
+  // fallback: old window scroll
+  const yLine = getHeaderBottomY();
+  const r = card.getBoundingClientRect();
+  const cardTopDoc = r.top + window.scrollY;
+  const targetY = Math.max(0, Math.round(cardTopDoc - yLine));
 
-  return getNearestVisibleCard() || cards[0];
+  try{
+    window.scrollTo({ top: targetY, behavior: "auto" });
+  }catch{
+    window.scrollTo(0, targetY);
+  }
 }
+
 
 /***********************
 Tie utilities (across cards)
