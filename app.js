@@ -1862,26 +1862,6 @@ function switchToSectionForAuto(sec){
   refreshDisplayedNoteCells();
 }
 
-function scrollCardIntoView(card){
-  if(!card) return;
-
-  // scroll so the card sits just UNDER the header, not behind it
-  const yLine = getHeaderBottomY(); // already includes +8 padding
-  const r = card.getBoundingClientRect();
-
-  // where the card's top currently is in document space
-  const cardTopDoc = r.top + window.scrollY;
-
-  // target top = cardTopDoc - headerBottom
-  const targetY = Math.max(0, Math.round(cardTopDoc - yLine));
-
-  try{
-    window.scrollTo({ top: targetY, behavior: "auto" });
-  }catch{
-    window.scrollTo(0, targetY);
-  }
-}
-
 
 function autoAdvanceOnBar(){
   if(!state.autoScrollOn) return;
@@ -2088,6 +2068,7 @@ if(state.tick8 % 8 === 0){
   }
 
   state.audioSyncRaf = requestAnimationFrame(audioSyncFrame);
+
 }
 
 
@@ -3283,8 +3264,8 @@ async function startAudioSyncFromRec(rec){
   state.lastAudioTick8 = -1;
   state.lastHorseBar = -1; // ✅ reset for MP3 sync too
   state.audioSyncRaf = requestAnimationFrame(audioSyncFrame);
-} // ✅ IMPORTANT: this closing brace was missing in your file
 
+} // ✅ CLOSE startAudioSyncFromRec
 
 function pickBestMimeType(){
   const types = [
