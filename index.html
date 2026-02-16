@@ -32,7 +32,7 @@
       --titleFont: Impact, Haettenschweiler, "Arial Black", "Franklin Gothic Heavy", var(--sans);
 
       /* ✅ ONE source of truth for horse height (GIF + parked horse) */
-      --horseH: 100px;
+      --horseH: 130px;
 
       /* ✅ gets set by the tiny script below */
       --headerH: 160px;
@@ -142,12 +142,18 @@
     .srp-green{ color: var(--backbeatGreen); }
 
     /* ✅ Parked horse: same height as GIF horse */
-    #horseParked{
-      height: var(--horseH);
-      width:auto;
-      display:block;
-      filter: drop-shadow(0 6px 12px rgba(0,0,0,.10));
-    }
+  #horseParked{
+  position:absolute;
+  right:16px;
+  top:50%;
+  transform:translateY(-50%);
+  height:var(--horseH);
+  width:auto;
+  display:block;
+  pointer-events:none;
+  filter:drop-shadow(0 6px 12px rgba(0,0,0,.10));
+}
+
 
     .miniBar{ display:none; padding:10px 12px; border-bottom:1px solid rgba(0,0,0,.06); }
     .miniBar.show{ display:block; }
