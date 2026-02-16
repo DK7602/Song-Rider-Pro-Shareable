@@ -3903,16 +3903,57 @@ function installSectionSwipe(){
 Wiring
 ***********************/
 function wire(){
-  el.togglePanelBtn.addEventListener("click", () => {
+  const on = (node, ev, fn) => {
+    if(node) node.addEventListener(ev, fn);
+  };
+
+  // Panel toggle
+  on(el.togglePanelBtn, "click", () => {
+    if(!el.panelBody) return;
     const hidden = !el.panelBody.classList.contains("hidden");
     setPanelHidden(hidden);
   });
 
-  el.autoSplitBtn.addEventListener("click", () => {
+  // AutoSplit
+  on(el.autoSplitBtn, "click", () => {
     state.autoSplit = !state.autoSplit;
-    el.autoSplitBtn.classList.toggle("active", state.autoSplit);
-    el.autoSplitBtn.textContent = "AutoSplit: " + (state.autoSplit ? "ON" : "OFF");
+    if(el.autoSplitBtn){
+      el.autoSplitBtn.classList.toggle("active", state.autoSplit);
+      el.autoSplitBtn.textContent =
+        "AutoSplit: " + (state.autoSplit ? "ON" : "OFF");
+    }
   });
+
+  // Export
+  on(el.exportBtn, "click", exportFullPreview);
+
+  // BPM
+  on(el.bpmInput, "change", () => {
+    if(!el.bpmInput) return;
+    let n = parseInt(el.bpmInput.value, 10);
+    if(!Number.isFinite(n)) n = 95;
+    state.bpm = clamp(n, 40, 220);
+  });
+
+  // Rap drums
+  on(el.drumRap, "click", () => {
+    if(state.drumStyle === "rap" && state.drumsOn){
+      stopDrums();
+    }else{
+      state.drumStyle = "rap";
+      startDrums();
+    }
+    renderDrumUI();
+  });
+
+  // AutoScroll
+  on(el.autoPlayBtn, "click", () => {
+    setAutoScroll(!state.autoScrollOn);
+  });
+
+  // Record
+  on(el.recordBtn, "click", toggleRecording);
+}
 
   if(el.exportBtn){
     el.exportBtn.addEventListener("click", exportFullPreview);
