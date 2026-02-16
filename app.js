@@ -159,13 +159,23 @@ Project storage (MAIN)
 const LS_KEY = "songrider_v25_projects";
 const LS_CUR = "songrider_v25_currentProjectId";
 
-function newLine(){
-  return {
-    id: uuid(),
-    notes: Array(8).fill(""),
-    lyrics: "",
-    beats: Array(4).fill("")
-  };
+function lineHasContent(line){
+  if(!line || typeof line !== "object") return false;
+
+  const lyr = String(line.lyrics || "").trim();
+  if(lyr) return true;
+
+  const notes = Array.isArray(line.notes) ? line.notes : [];
+  for(const n of notes){
+    if(String(n || "").trim()) return true;
+  }
+
+  const beats = Array.isArray(line.beats) ? line.beats : [];
+  for(const b of beats){
+    if(String(b || "").trim()) return true;
+  }
+
+  return false;
 }
 
 function defaultProject(name="New Song"){
