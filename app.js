@@ -498,11 +498,19 @@ function applyTick(){
 
   const touched = [];
 
-  // If AutoScroll ON: tick only the playback card (keeps perf good)
-  // If AutoScroll OFF: tick ALL visible cards (fixes “only one line” complaint)
-  const cards = state.autoScrollOn
-    ? [getPlaybackCard() || getCardAtPlayLine() || getNearestVisibleCard()].filter(Boolean)
-    : getVisibleCards();
+  // ✅ Always guarantee at least 1 card to tick
+  let cards = [];
+  if(state.autoScrollOn){
+    const one = getPlaybackCard() || getCardAtPlayLine() || getNearestVisibleCard();
+    if(one) cards = [one];
+  }
+  if(!cards.length){
+    cards = getVisibleCards();
+  }
+  if(!cards.length){
+    const all = getCards();
+    if(all.length) cards = [all[0]];
+  }
 
   for(const card of cards){
     const notes = card.querySelectorAll(".noteCell");
@@ -520,6 +528,7 @@ function applyTick(){
 
   state.lastTickEls = touched;
 }
+
 /***********************
 Audio (routed through master bus)
 ***********************/
