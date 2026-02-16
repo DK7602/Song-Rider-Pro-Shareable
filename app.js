@@ -3888,83 +3888,83 @@ function prevSection(){
 /***********************
 Swipe detection (horizontal)
 ***********************/
-.abs(dx) < MIN_X) return;
 function installSectionSwipe(){
-  let sx=0, sy=0, t0=0, tracking=false, locked=false;
-  let lastFire = 0;
-  let startedOnEditable = false;
+  const root = el.sheetBody || document.body;
 
-  const MAX_MS = 800;
-  const DOMINANCE = 1.35;
+  // ✅ visible proof the NEW code is running
+  (function showReady(){
+    const badge = document.createElement("div");
+    badge.textContent = "SWIPE READY";
+    badge.style.position = "fixed";
+    badge.style.left = "12px";
+    badge.style.bottom = "12px";
+    badge.style.zIndex = "999999";
+    badge.style.padding = "10px 12px";
+    badge.style.borderRadius = "12px";
+    badge.style.background = "rgba(0,0,0,.85)";
+    badge.style.color = "#fff";
+    badge.style.fontWeight = "900";
+    badge.style.fontFamily = "system-ui, -apple-system, Segoe UI, Roboto, Arial";
+    badge.style.letterSpacing = ".3px";
+    badge.style.pointerEvents = "none";
+    document.body.appendChild(badge);
+    setTimeout(()=>{ try{ badge.remove(); }catch{} }, 1800);
+  })();
 
-  function isControlEl(target){
-    if(!target) return false;
-    const tag = (target.tagName || "").toUpperCase();
-    // These are the ones we truly never want to swipe-page on:
-    return (tag === "BUTTON" || tag === "SELECT");
+  function toast(msg){
+    const t = document.createElement("div");
+    t.textContent = msg;
+    t.style.position = "fixed";
+    t.style.left = "50%";
+    t.style.top = "12px";
+    t.style.transform = "translateX(-50%)";
+    t.style.zIndex = "999999";
+    t.style.padding = "10px 12px";
+    t.style.borderRadius = "12px";
+    t.style.background = "rgba(0,0,0,.85)";
+    t.style.color = "#fff";
+    t.style.fontWeight = "900";
+    t.style.fontFamily = "system-ui, -apple-system, Segoe UI, Roboto, Arial";
+    t.style.pointerEvents = "none";
+    document.body.appendChild(t);
+    setTimeout(()=>{ try{ t.remove(); }catch{} }, 650);
   }
 
-  function isEditableStart(target){
-    if(!target) return false;
-    const tag = (target.tagName || "").toUpperCase();
-    if(tag === "INPUT" || tag === "TEXTAREA") return true;
-    if(target.isContentEditable) return true;
-    return false;
-  }
+  let sx=0, sy=0, t0=0, tracking=false;
+  let lastFire=0;
 
-  function onStart(e){
-    // don’t page-switch when rhyme dock is open
+  const MIN_X = 90;      // bigger so it’s intentional
+  const MAX_MS = 900;
+  const DOMINANCE = 1.25;
+
+  function start(e){
     if(el.rhymeDock && el.rhymeDock.style.display === "block") return;
 
-    const pt = (e.touches && e.touches[0]) ? e.touches[0] : e;
+    const pt = e.touches && e.touches[0];
+    if(!pt) return;
+
     const target = e.target;
 
-    // don’t page-switch when starting inside the top panel area
+    // ✅ do NOT block inputs anymore — we WANT swipes anywhere
+    // Only block if user started inside the top panel controls
     if(target && target.closest && target.closest("#panelBody")) return;
-
-    // don’t page-switch on real controls (buttons/selects)
-    if(isControlEl(target)) return;
-
-    startedOnEditable = isEditableStart(target);
 
     sx = pt.clientX; sy = pt.clientY; t0 = performance.now();
     tracking = true;
-    locked = false;
   }
 
-  function onMove(e){
-    if(!tracking) return;
-    const pt = (e.touches && e.touches[0]) ? e.touches[0] : e;
-
-    const dx = pt.clientX - sx;
-    const dy = pt.clientY - sy;
-
-    if(!locked){
-      // lock horizontal swipe if it clearly dominates
-      if(Math.abs(dx) > 14 && Math.abs(dx) > Math.abs(dy) * DOMINANCE){
-        locked = true;
-      }else if(Math.abs(dy) > 18 && Math.abs(dy) > Math.abs(dx)){
-        // user is scrolling vertically -> cancel swipe tracking
-        tracking = false;
-        return;
-      }
-    }
-  }
-
-  function onEnd(e){
+  function end(e){
     if(!tracking) return;
     tracking = false;
 
-    const pt = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0] : e;
+    const pt = e.changedTouches && e.changedTouches[0];
+    if(!pt) return;
+
     const dx = pt.clientX - sx;
     const dy = pt.clientY - sy;
     const dt = performance.now() - t0;
 
     if(dt > MAX_MS) return;
-
-    // ✅ If swipe started on a text field, require a bigger swipe so typing/scrolling doesn’t accidentally page
-    const MIN_X = startedOnEditable ? 110 : 60;
-
     if(Math.abs(dx) < MIN_X) return;
     if(Math.abs(dx) < Math.abs(dy) * DOMINANCE) return;
 
@@ -3972,27 +3972,32 @@ function installSectionSwipe(){
     if(nowMs - lastFire < 250) return;
     lastFire = nowMs;
 
-    if(dx < 0) nextSection();
-    else prevSection();
+    if(dx < 0){
+      toast("➡ Next");
+      nextSection();
+    }else{
+      toast("⬅ Prev");
+      prevSection();
+    }
   }
 
-  // Touch
-  document.addEventListener("touchstart", onStart, { passive:true });
-  document.addEventListener("touchmove", onMove, { passive:true });
-  document.addEventListener("touchend", onEnd, { passive:true });
+  // attach to the scroll area (this is the important part)
+  root.addEventListener("touchstart", start, { passive:true });
+  root.addEventListener("touchend", end, { passive:true });
+  root.addEventListener("touchcancel", ()=>{ tracking=false; }, { passive:true });
 
-  // Pointer (desktop)
-  document.addEventListener("pointerdown", onStart, { passive:true });
-  document.addEventListener("pointermove", onMove, { passive:true });
-  document.addEventListener("pointerup", onEnd, { passive:true });
-
-  // Desktop arrow keys (when not typing)
+  // desktop arrows still work
   document.addEventListener("keydown", (e)=>{
     if(isEditableEl(document.activeElement)) return;
     if(e.key === "ArrowLeft") prevSection();
     if(e.key === "ArrowRight") nextSection();
   });
+
+  // global flag you can check in console if needed
+  window.__SWIPE_INSTALLED__ = true;
 }
+
+
 /***********************
 Wiring
 ***********************/
