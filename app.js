@@ -2861,7 +2861,6 @@ wrap.appendChild(previewBlock);
       pressTimer = setTimeout(() => {
         if(!confirm(`Delete line ${idx+1} from ${state.currentSection}?`)) return;
         arr.splice(idx, 1);
-        while(arr.length < DEFAULT_LINES_PER_SECTION) arr.push(newLine());
         upsertProject(state.project);
         renderSheet();
         updateFullIfVisible();
@@ -3004,8 +3003,7 @@ wrap.appendChild(previewBlock);
           arr.splice(idx+1, 0, nl);
         }
 
-        while(arr.length < DEFAULT_LINES_PER_SECTION) arr.push(newLine());
-
+        
         upsertProject(state.project);
         renderSheet();
         updateFullIfVisible();
