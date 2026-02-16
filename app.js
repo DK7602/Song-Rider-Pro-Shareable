@@ -43,7 +43,9 @@ function escapeHtml(s){
 DOM
 ***********************/
 const el = {
-  headshotWrap: $("headshotWrap"),
+horseWrap: $("horseWrap"),
+horseRight: $("horseRight"),
+horseLeft: $("horseLeft"),
 
    uploadAudioBtn: $("uploadAudioBtn"),
   beat1Btn: $("beat1Btn"),
@@ -377,12 +379,74 @@ lastAutoBar: -1,
 };
 
 /***********************
-Headshot blink
+HORSE RUNNER (BPM-synced)
+- Runs across screen once per BAR (every 8 eighth-notes)
+- Alternates direction each bar
+- Triggers for: drums, instrument, MP3 sync
 ***********************/
-function doBlink(){
-  if(!el.headshotWrap) return;
-  el.headshotWrap.classList.add("blink");
-  setTimeout(() => el.headshotWrap.classList.remove("blink"), 80);
+state.horseDir = 1;        // 1 = right, -1 = left
+state.lastHorseBar = -1;   // prevents double-fires
+
+function stopHorse(){
+  if(!el.horseRight || !el.horseLeft) return;
+  [el.horseRight, el.horseLeft].forEach(img => {
+    try{
+      img.style.display = "none";
+      img.classList.remove("horseRunRight","horseRunLeft");
+      img.style.animationDuration = "";
+      img.style.animation = "none";
+      // force reset
+      void img.offsetHeight;
+      img.style.animation = "";
+    }catch{}
+  });
+}
+
+function horseShouldRun(){
+  // “as the mp3 / instrument / drums play…”
+  return !!(state.drumsOn || state.instrumentOn || state.audioSyncOn);
+}
+
+function triggerHorseRun(){
+  if(!horseShouldRun()) return;
+  if(!el.horseRight || !el.horseLeft) return;
+
+  const bpm = clamp(state.bpm || 95, 40, 220);
+  const barMs = Math.round((240000 / bpm)); // 4 beats per bar
+
+  // alternate direction each bar
+  state.horseDir = (state.horseDir === 1) ? -1 : 1;
+
+  const img = (state.horseDir === 1) ? el.horseRight : el.horseLeft;
+  const cls = (state.horseDir === 1) ? "horseRunRight" : "horseRunLeft";
+
+  // hide the other one
+  const other = (img === el.horseRight) ? el.horseLeft : el.horseRight;
+  try{
+    other.style.display = "none";
+    other.classList.remove("horseRunRight","horseRunLeft");
+    other.style.animationDuration = "";
+  }catch{}
+
+  // restart animation cleanly
+  try{
+    img.style.display = "block";
+    img.classList.remove("horseRunRight","horseRunLeft");
+    img.style.animationDuration = "0ms";
+    img.style.animation = "none";
+    void img.offsetHeight; // reflow
+    img.style.animation = "";
+    img.style.animationDuration = barMs + "ms";
+    img.classList.add(cls);
+
+    img.onanimationend = () => {
+      try{
+        img.style.display = "none";
+        img.classList.remove("horseRunRight","horseRunLeft");
+        img.style.animationDuration = "";
+      }catch{}
+    };
+  }catch{}
 }
 
 /***********************
@@ -1818,6 +1882,9 @@ function stopBeatClock(){
     clearInterval(state.beatTimer);
     state.beatTimer = null;
   }
+if(!state.audioSyncOn) stopHorse();
+
+
   if(!state.audioSyncOn) clearTick();
 }
 
@@ -1833,6 +1900,8 @@ AUDIO SYNC CLOCK (MP3 is master)
 ***********************/
 function audioSyncStopInternal(){
   state.audioSyncOn = false;
+  stopHorse();
+
   // ✅ disconnect MP3-from-WebAudio routing
   try{
     if(state.audioSyncSource) state.audioSyncSource.disconnect();
@@ -1891,6 +1960,14 @@ function audioSyncFrame(){
   if(tick8 !== state.lastAudioTick8){
     state.lastAudioTick8 = tick8;
     state.tick8 = Math.max(0, tick8);
+// Horse runs once per BAR during MP3 sync
+if(state.tick8 % 8 === 0){
+  const bar = Math.floor(state.tick8 / 8);
+  if(bar !== state.lastHorseBar){
+    state.lastHorseBar = bar;
+    triggerHorseRun();
+  }
+}
 
     // ✅ same UI pipeline as your internal clock
     try{
@@ -1991,7 +2068,14 @@ function startBeatClock(){
     clearTick();
     applyTick();
 
-    if(state.drumsOn && state.tick8 % 2 === 0) doBlink();
+    // Horse runs once per BAR
+if(state.tick8 % 8 === 0){
+  const bar = Math.floor(state.tick8 / 8);
+  if(bar !== state.lastHorseBar){
+    state.lastHorseBar = bar;
+    triggerHorseRun();
+  }
+}
 
     playInstrumentStep();
 
