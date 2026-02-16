@@ -1,7 +1,7 @@
 {
   "name": "Song Rider Pro - Shareable",
   "short_name": "Song Rider Share",
-  "start_url": "./index.html?share=1",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#e9e9ea",
