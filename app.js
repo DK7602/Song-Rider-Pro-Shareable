@@ -1738,6 +1738,7 @@ function getHeaderBottomY(){
 }
 
 function getCards(){
+  if(!el.sheetBody) return [];
   return Array.from(el.sheetBody.querySelectorAll(".card"));
 }
 
