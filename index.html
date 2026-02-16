@@ -443,12 +443,19 @@
       outline: none;
     }
 
-    .fullBoxWrap{ padding:12px; display:flex; flex-direction:column; gap:10px; }
-    .fullLabel{
-      font-size:12px;
-      font-weight:1000;
-      color:#333;
-    }
+  .fullBoxWrap{
+  padding:12px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  height:100%;
+}
+#sheetBody{
+  display:flex;
+  flex-direction:column;
+  min-height:65vh;
+}
+
     textarea.fullBox{
       width:100%;
       min-height:22vh;
@@ -467,6 +474,7 @@
     textarea.fullPreview{
       width:100%;
       min-height:22vh;
+      flex:1;
       padding:12px;
       border-radius:14px;
       border:1px solid rgba(0,0,0,.12);
@@ -563,10 +571,11 @@
     </div>
 
     <!-- 🐎 Parked Horse -->
-    <img id="horseParked"
-         src="./Horserunsright.gif?v=61"
-         alt="Horse"
-         style="height:28px; width:auto;" />
+<img id="horseParked"
+     src="./parked-horse.png?v=62"
+     alt="Horse"
+     style="height:28px; width:auto;" />
+
 
   </div>
 
