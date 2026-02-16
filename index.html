@@ -1,4 +1,4 @@
-<!-- index.html (FULL REPLACE MAIN v45 - AutoScroll circle + Record circle fixed) -->
+<!-- index.html (FULL REPLACE MAIN v46 - Horse runner + title moved + headshot removed) -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -27,10 +27,6 @@
 
       --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Liberation Sans", sans-serif;
-
-      --eyeX1: 18px;
-      --eyeX2: 30px;
-      --eyeY: 14px;
     }
 
     *{ box-sizing:border-box; }
@@ -42,43 +38,51 @@
       border-bottom:1px solid rgba(0,0,0,.08);
       padding:10px 12px 10px;
     }
-    .topRow{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
-    .brand h1{ margin:0; font-size:20px; letter-spacing:.2px; }
-    .brand .sub{ margin-top:2px; font-size:12px; color:var(--muted); font-weight:900; }
 
-    .headshotFloat{
-      position:fixed; top:10px; right:10px;
-      width:56px; height:56px;
-      z-index:999;
+    /* ✅ HORSE RUNNER LAYER (fixed, pointer-events none) */
+    .horseWrap{
+      position:fixed;
+      left:0; right:0;
+      top:6px;
+      height:74px;
+      z-index:120;          /* above header + content */
       pointer-events:none;
+      overflow:visible;
     }
-    .headshotFloat img{
-      width:100%; height:100%;
-      object-fit:contain;
-      border-radius:999px;
-      opacity:.98;
-      filter: drop-shadow(0 10px 18px rgba(0,0,0,.20));
-      background:transparent;
-    }
-    .eye{
+    .horseWrap img{
       position:absolute;
-      width:10px; height:10px;
-      border-radius:999px;
-      background:rgba(255,0,0,.05);
-      opacity:0;
-      transition:opacity 60ms linear, box-shadow 60ms linear;
-      top: var(--eyeY);
+      top:0;
+      height:74px;          /* tweak if you want bigger/smaller */
+      width:auto;
+      display:none;
+      will-change:transform;
+      filter: drop-shadow(0 10px 18px rgba(0,0,0,.18));
     }
-    .eye.left{ left: var(--eyeX1); }
-    .eye.right{ left: var(--eyeX2); }
-    .headshotFloat.blink .eye{
-      opacity:1;
-      background:rgba(255,0,0,.90);
-      box-shadow: 0 0 14px rgba(255,0,0,.85);
+
+    @keyframes horseRunRight{
+      from{ transform: translateX(-180px); }
+      to{ transform: translateX(calc(100vw + 180px)); }
+    }
+    @keyframes horseRunLeft{
+      from{ transform: translateX(calc(100vw + 180px)); }
+      to{ transform: translateX(-180px); }
+    }
+
+    .horseRunRight{
+      left:0;
+      animation-name: horseRunRight;
+      animation-timing-function: linear;
+      animation-fill-mode: both;
+    }
+    .horseRunLeft{
+      left:0;
+      animation-name: horseRunLeft;
+      animation-timing-function: linear;
+      animation-fill-mode: both;
     }
 
     .panel{
-      margin-top:10px;
+      margin-top:0; /* ✅ header is simpler now */
       background:var(--card);
       border-radius:var(--radius);
       box-shadow:var(--shadow);
@@ -90,9 +94,14 @@
       border-bottom:1px solid rgba(0,0,0,.06);
       display:flex; align-items:center; justify-content:space-between; gap:10px;
     }
+
+    /* ✅ Title moved here */
     .panelTop .left{
-      font-weight:1100; font-size:12px; letter-spacing:.3px;
+      font-weight:1200;
+      font-size:18px;
+      letter-spacing:.2px;
       color:#111;
+      line-height:1;
     }
 
     .miniBar{ display:none; padding:10px 12px; border-bottom:1px solid rgba(0,0,0,.06); }
@@ -112,7 +121,7 @@
     .row.nowrap{
       flex-wrap:nowrap;
       overflow-x:hidden;
-      gap:6px; /* ✅ tighter so right-side buttons fit */
+      gap:6px;
     }
 
     .pill{
@@ -219,7 +228,6 @@
       line-height:1;
     }
 
-    /* ✅ AutoScroll is now a circle (same behavior as before) */
     .iconCircle.scrollCircle{
       background:#111;
       border-color:#111;
@@ -233,30 +241,26 @@
       color:#fff;
     }
 
-  /* ✅ Record circle: ● when idle, ■ when recording */
-.iconCircle.recCircle{
-  background: var(--dangerRed);
-  border-color: var(--dangerRed);
-  position:relative;
-
-  /* ✅ kills any leftover text like "Record" */
-  font-size:0;
-  color:transparent;
-  overflow:hidden;
-  text-indent:-9999px;
-}
-.iconCircle.recCircle::before{
-  content:"●";
-  font-size:16px;          /* visible symbol size */
-  color:#fff;
-  line-height:1;
-  text-indent:0;
-}
-.iconCircle.recCircle.recording::before{
-  content:"■";
-  font-size:15px;
-}
-
+    .iconCircle.recCircle{
+      background: var(--dangerRed);
+      border-color: var(--dangerRed);
+      position:relative;
+      font-size:0;
+      color:transparent;
+      overflow:hidden;
+      text-indent:-9999px;
+    }
+    .iconCircle.recCircle::before{
+      content:"●";
+      font-size:16px;
+      color:#fff;
+      line-height:1;
+      text-indent:0;
+    }
+    .iconCircle.recCircle.recording::before{
+      content:"■";
+      font-size:15px;
+    }
 
     .tabs{
       display:flex;
@@ -520,24 +524,16 @@
 </head>
 
 <body>
-  <div class="headshotFloat" id="headshotWrap">
-    <img id="headshotImg" src="./headshot.png?v=59" alt="Headshot"/>
-    <div class="eye left"></div>
-    <div class="eye right"></div>
+  <!-- ✅ Horse GIFs (these filenames must exist in your repo) -->
+  <div class="horseWrap" id="horseWrap" aria-hidden="true">
+    <img id="horseRight" src="./Horserunsright.gif?v=59" alt="Horse runs right"/>
+    <img id="horseLeft"  src="./Horserunsleft.gif?v=59"  alt="Horse runs left"/>
   </div>
 
   <header>
-    <div class="topRow">
-      <div class="brand">
-        <h1>Song Rider Pro</h1>
-        <div class="sub">Chords/notes • timing • lyrics • sections</div>
-      </div>
-      <div style="width:56px;height:56px;"></div>
-    </div>
-
     <div class="panel">
       <div class="panelTop">
-        <div class="left">PROJECTS • CONTROLS • DRUMS • RECORDINGS</div>
+        <div class="left">Song Rider Pro</div>
         <button class="btn secondary" id="togglePanelBtn">Hide</button>
       </div>
 
@@ -560,7 +556,7 @@
           <div class="tinyField key"><input id="keyOutput" type="text" readonly value="—"/></div>
         </div>
 
-       <div class="row" style="border-top:1px solid rgba(0,0,0,.06);">
+        <div class="row" style="border-top:1px solid rgba(0,0,0,.06);">
           <button class="pill" id="instAcoustic">Acoustic</button>
           <button class="pill" id="instElectric">Electric</button>
           <button class="pill" id="instPiano">Piano</button>
@@ -572,21 +568,16 @@
           <button class="exportBtn" id="exportBtn" title="Export (.txt + printable colored .html)">Export</button>
         </div>
 
-      <div class="row nowrap" style="border-top:1px solid rgba(0,0,0,.06);">
+        <div class="row nowrap" style="border-top:1px solid rgba(0,0,0,.06);">
           <button class="pill" id="drumRock">Rock</button>
           <button class="pill" id="drumHardRock">Hard Rock</button>
           <button class="pill" id="drumPop">Pop</button>
           <button class="pill" id="drumRap">Rap</button>
 
-          <!-- ✅ AutoScroll circle -->
           <button class="iconCircle scrollCircle" id="autoPlayBtn" title="AutoScroll">⇅</button>
-
-          <!-- ✅ Record (moved LEFT so it never gets clipped) -->
           <button class="iconCircle recCircle" id="recordBtn" title="Record"></button>
-
-          <!-- ✅ Upload/Stop (same button) -->
           <button class="iconCircle" id="uploadAudioBtn" title="Upload audio (tap). Stop sync (when playing).">⬆️</button>
-
+          <button class="iconCircle" id="beat1Btn" title="Mark Beat 1 now (while MP3 plays)">1</button>
         </div>
 
         <div class="row" style="display:flex;align-items:center;gap:10px;flex-wrap:nowrap;border-top:1px solid rgba(0,0,0,.06);">
@@ -607,7 +598,6 @@
           </div>
           <div id="recordingsList" style="flex:1 1 auto;display:flex;flex-direction:column;gap:8px;width:100%;"></div>
         </div>
-
       </div>
     </div>
 
