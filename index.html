@@ -1,4 +1,4 @@
-<!-- index.html (FULL REPLACE MAIN v48 - OFFLINE title font + pink/blue/green OUTLINE) -->
+<!-- index.html (FULL REPLACE MAIN v49 - fixes: parked horse + Hide button + removes broken stray HTML) -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -83,19 +83,18 @@
       animation-timing-function: linear;
       animation-fill-mode: both;
     }
-/* FULL page: push preview to the bottom */
-.fullPreviewBlock{
-  margin-top:auto;              /* <-- this is the magic */
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-}
 
-/* let the FULL PAGE box take remaining space */
-textarea.fullBox{
-  flex:1;
-  min-height:0;                 /* important for flex layouts */
-}
+    /* FULL page: push preview to the bottom (used by app.js layout) */
+    .fullPreviewBlock{
+      margin-top:auto;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    textarea.fullBox{
+      flex:1;
+      min-height:0;
+    }
 
     .panel{
       margin-top:0;
@@ -124,7 +123,6 @@ textarea.fullBox{
       text-transform: uppercase;
     }
 
-    /* Each letter keeps its fill color, but OUTLINE has pink+blue+green */
     .panelTop .left span{
       text-shadow:
         -1px  0   var(--noteBlue),
@@ -137,6 +135,20 @@ textarea.fullBox{
     .srp-pink{ color: var(--lyricPink); }
     .srp-blue{ color: var(--noteBlue); }
     .srp-green{ color: var(--backbeatGreen); }
+
+    /* ✅ parked horse beside title (safe container) */
+    .brandRow{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      min-width:0;
+    }
+    #horseParked{
+      height:28px;
+      width:auto;
+      display:block;
+      flex:0 0 auto;
+    }
 
     .miniBar{ display:none; padding:10px 12px; border-bottom:1px solid rgba(0,0,0,.06); }
     .miniBar.show{ display:block; }
@@ -329,10 +341,9 @@ textarea.fullBox{
       border:1px solid rgba(0,0,0,.06);
       overflow:hidden;
       min-height:220px;
-      
-        display:flex;
-  flex-direction:column;
 
+      display:flex;
+      flex-direction:column;
     }
     .sheetHeader{
       padding:10px 12px;
@@ -460,20 +471,20 @@ textarea.fullBox{
       outline: none;
     }
 
-.fullBoxWrap{
-  padding:12px;
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-  flex:1;
-}
+    .fullBoxWrap{
+      padding:12px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      flex:1;
+    }
 
-#sheetBody{
-  display:flex;
-  flex-direction:column;
-  min-height:65vh;
-    flex:1;
-}
+    #sheetBody{
+      display:flex;
+      flex-direction:column;
+      min-height:65vh;
+      flex:1;
+    }
 
     textarea.fullBox{
       width:100%;
@@ -572,7 +583,7 @@ textarea.fullBox{
 </head>
 
 <body>
-  <!-- ✅ Horse GIFs -->
+  <!-- ✅ Horse GIFs (runner overlay) -->
   <div class="horseWrap" id="horseWrap" aria-hidden="true">
     <img id="horseRight" src="./Horserunsright.gif?v=60" alt="Horse runs right"/>
     <img id="horseLeft"  src="./Horserunsleft.gif?v=60"  alt="Horse runs left"/>
@@ -581,68 +592,67 @@ textarea.fullBox{
   <header>
     <div class="panel">
       <div class="panelTop">
-  <div style="display:flex; align-items:center; gap:10px;">
-    
-    <div class="left" aria-label="Song Rider Pro">
-      <span class="srp-pink">Song</span>
-      <span class="srp-blue">Rider</span>
-      <span class="srp-green">Pro</span>
-    </div>
+        <div class="brandRow">
+          <div class="left" aria-label="Song Rider Pro">
+            <span class="srp-pink">Song</span>
+            <span class="srp-blue">Rider</span>
+            <span class="srp-green">Pro</span>
+          </div>
 
-    <!-- 🐎 Parked Horse -->
-<img id="horseParked" src="./horse-parked.png" alt="Horse" style="height:28px;width:auto;" />
-     src="./horse-parked.png
-     alt="Horse"
-     style="height:28px; width:auto;" />
+          <!-- 🐎 Parked Horse (FIXED: only ONE img tag, no broken stray text) -->
+          <img
+            id="horseParked"
+            src="./horse-parked.png?v=60"
+            alt="Horse"
+            onerror="this.style.display='none';"
+          />
+        </div>
 
-
-  </div>
-
-  <button class="btn secondary" id="togglePanelBtn">Hide</button>
-</div>
-
+        <!-- ✅ Hide button restored -->
+        <button class="btn secondary" id="togglePanelBtn" type="button">Hide</button>
+      </div>
 
       <div class="miniBar" id="miniBar">
         <div class="row nowrap" style="padding:0;">
-          <button class="pill" id="mRock">Rock</button>
-          <button class="pill" id="mHardRock">Hard Rock</button>
-          <button class="pill" id="mPop">Pop</button>
-          <button class="pill" id="mRap">Rap</button>
-          <button class="iconCircle scrollCircle" id="mScrollBtn" title="AutoScroll">⇅</button>
-          <button class="btn rec" id="mRecordBtn">Record</button>
+          <button class="pill" id="mRock" type="button">Rock</button>
+          <button class="pill" id="mHardRock" type="button">Hard Rock</button>
+          <button class="pill" id="mPop" type="button">Pop</button>
+          <button class="pill" id="mRap" type="button">Rap</button>
+          <button class="iconCircle scrollCircle" id="mScrollBtn" title="AutoScroll" type="button">⇅</button>
+          <button class="btn rec" id="mRecordBtn" type="button">Record</button>
         </div>
       </div>
 
       <div id="panelBody">
         <div class="row">
-          <button class="tinyBtn" id="autoSplitBtn">AutoSplit</button>
+          <button class="tinyBtn" id="autoSplitBtn" type="button">AutoSplit</button>
           <div class="tinyField"><input id="bpmInput" type="number" min="40" max="220" step="1" value="95"/></div>
           <div class="tinyField"><input id="capoInput" type="number" min="0" max="12" step="1" value="0"/></div>
           <div class="tinyField key"><input id="keyOutput" type="text" readonly value="—"/></div>
         </div>
 
         <div class="row" style="border-top:1px solid rgba(0,0,0,.06);">
-          <button class="pill" id="instAcoustic">Acoustic</button>
-          <button class="pill" id="instElectric">Electric</button>
-          <button class="pill" id="instPiano">Piano</button>
+          <button class="pill" id="instAcoustic" type="button">Acoustic</button>
+          <button class="pill" id="instElectric" type="button">Electric</button>
+          <button class="pill" id="instPiano" type="button">Piano</button>
 
-          <button class="tinyBtn" id="instDots" title="Note length: fixed 1/8 (… )">...</button>
-          <button class="tinyBtn" id="instTieBar" title="Note length: tie to next note across cards ( _ )">_</button>
+          <button class="tinyBtn" id="instDots" title="Note length: fixed 1/8 (… )" type="button">...</button>
+          <button class="tinyBtn" id="instTieBar" title="Note length: tie to next note across cards ( _ )" type="button">_</button>
 
           <div style="flex:1 1 auto;"></div>
-          <button class="exportBtn" id="exportBtn" title="Export (.txt + printable colored .html)">Export</button>
+          <button class="exportBtn" id="exportBtn" title="Export (.txt + printable colored .html)" type="button">Export</button>
         </div>
 
         <div class="row nowrap" style="border-top:1px solid rgba(0,0,0,.06);">
-          <button class="pill" id="drumRock">Rock</button>
-          <button class="pill" id="drumHardRock">Hard Rock</button>
-          <button class="pill" id="drumPop">Pop</button>
-          <button class="pill" id="drumRap">Rap</button>
+          <button class="pill" id="drumRock" type="button">Rock</button>
+          <button class="pill" id="drumHardRock" type="button">Hard Rock</button>
+          <button class="pill" id="drumPop" type="button">Pop</button>
+          <button class="pill" id="drumRap" type="button">Rap</button>
 
-          <button class="iconCircle scrollCircle" id="autoPlayBtn" title="AutoScroll">⇅</button>
-          <button class="iconCircle recCircle" id="recordBtn" title="Record"></button>
-          <button class="iconCircle" id="uploadAudioBtn" title="Upload audio (tap). Stop sync (when playing).">⬆️</button>
-          <button class="iconCircle" id="beat1Btn" title="Mark Beat 1 now (while MP3 plays)">1</button>
+          <button class="iconCircle scrollCircle" id="autoPlayBtn" title="AutoScroll" type="button">⇅</button>
+          <button class="iconCircle recCircle" id="recordBtn" title="Record" type="button"></button>
+          <button class="iconCircle" id="uploadAudioBtn" title="Upload audio (tap). Stop sync (when playing)." type="button">⬆️</button>
+          <button class="iconCircle" id="beat1Btn" title="Mark Beat 1 now (while MP3 plays)" type="button">1</button>
         </div>
 
         <div class="row" style="display:flex;align-items:center;gap:10px;flex-wrap:nowrap;border-top:1px solid rgba(0,0,0,.06);">
@@ -652,9 +662,9 @@ textarea.fullBox{
           </select>
 
           <select id="projectSelect" style="padding:8px 10px;border-radius:12px;border:1px solid rgba(0,0,0,.12);font-weight:900;height:34px;flex:1;min-width:0;"></select>
-          <button class="iconCircle" id="newProjectBtn" title="New Project">＋</button>
-          <button class="iconCircle" id="renameProjectBtn" title="Rename Project">✏️</button>
-          <button class="iconCircle" id="deleteProjectBtn" title="Delete Project">Ⓧ</button>
+          <button class="iconCircle" id="newProjectBtn" title="New Project" type="button">＋</button>
+          <button class="iconCircle" id="renameProjectBtn" title="Rename Project" type="button">✏️</button>
+          <button class="iconCircle" id="deleteProjectBtn" title="Delete Project" type="button">Ⓧ</button>
         </div>
 
         <div class="row" style="align-items:flex-start;border-top:1px solid rgba(0,0,0,.06);flex-direction:column;gap:8px;">
@@ -685,7 +695,7 @@ textarea.fullBox{
     <div class="rhymeBox">
       <div class="rhymeTop">
         <div id="rhymeTitle">Rhymes</div>
-        <button class="btn secondary" id="hideRhymeBtn">Hide</button>
+        <button class="btn secondary" id="hideRhymeBtn" type="button">Hide</button>
       </div>
       <div class="rhymeWords" id="rhymeWords"></div>
     </div>
