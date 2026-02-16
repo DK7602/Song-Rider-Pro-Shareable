@@ -316,6 +316,10 @@
       border:1px solid rgba(0,0,0,.06);
       overflow:hidden;
       min-height:220px;
+      
+        display:flex;
+  flex-direction:column;
+
     }
     .sheetHeader{
       padding:10px 12px;
@@ -443,17 +447,19 @@
       outline: none;
     }
 
-  .fullBoxWrap{
+.fullBoxWrap{
   padding:12px;
   display:flex;
   flex-direction:column;
   gap:10px;
-  height:100%;
+  flex:1;
 }
+
 #sheetBody{
   display:flex;
   flex-direction:column;
   min-height:65vh;
+    flex:1;
 }
 
     textarea.fullBox{
