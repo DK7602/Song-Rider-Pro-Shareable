@@ -3889,24 +3889,30 @@ function prevSection(){
 Swipe detection (horizontal)
 ***********************/
 function installSectionSwipe(){
-  const root = el.sheetBody || document.body;
+  // Use document-level pointer events (more reliable on Android than touchstart on a textarea)
+  const MIN_X = 90;        // swipe must be this far
+  const MAX_MS = 900;      // swipe must be quick-ish
+  const DOMINANCE = 1.25;  // must be more horizontal than vertical
+  const COOLDOWN = 250;
 
-  // ✅ visible proof the NEW code is running
+  let sx=0, sy=0, t0=0, tracking=false;
+  let lastFire=0;
+
+  // Visible proof it's installed (optional, remove later)
   (function showReady(){
     const badge = document.createElement("div");
     badge.textContent = "SWIPE READY";
-    badge.style.position = "fixed";
-    badge.style.left = "12px";
-    badge.style.bottom = "12px";
-    badge.style.zIndex = "999999";
-    badge.style.padding = "10px 12px";
-    badge.style.borderRadius = "12px";
-    badge.style.background = "rgba(0,0,0,.85)";
-    badge.style.color = "#fff";
-    badge.style.fontWeight = "900";
-    badge.style.fontFamily = "system-ui, -apple-system, Segoe UI, Roboto, Arial";
-    badge.style.letterSpacing = ".3px";
-    badge.style.pointerEvents = "none";
+    badge.style.position="fixed";
+    badge.style.left="12px";
+    badge.style.bottom="12px";
+    badge.style.zIndex="999999";
+    badge.style.padding="10px 12px";
+    badge.style.borderRadius="12px";
+    badge.style.background="rgba(0,0,0,.85)";
+    badge.style.color="#fff";
+    badge.style.fontWeight="900";
+    badge.style.fontFamily="system-ui, -apple-system, Segoe UI, Roboto, Arial";
+    badge.style.pointerEvents="none";
     document.body.appendChild(badge);
     setTimeout(()=>{ try{ badge.remove(); }catch{} }, 1800);
   })();
@@ -3914,54 +3920,55 @@ function installSectionSwipe(){
   function toast(msg){
     const t = document.createElement("div");
     t.textContent = msg;
-    t.style.position = "fixed";
-    t.style.left = "50%";
-    t.style.top = "12px";
-    t.style.transform = "translateX(-50%)";
-    t.style.zIndex = "999999";
-    t.style.padding = "10px 12px";
-    t.style.borderRadius = "12px";
-    t.style.background = "rgba(0,0,0,.85)";
-    t.style.color = "#fff";
-    t.style.fontWeight = "900";
-    t.style.fontFamily = "system-ui, -apple-system, Segoe UI, Roboto, Arial";
-    t.style.pointerEvents = "none";
+    t.style.position="fixed";
+    t.style.left="50%";
+    t.style.top="12px";
+    t.style.transform="translateX(-50%)";
+    t.style.zIndex="999999";
+    t.style.padding="10px 12px";
+    t.style.borderRadius="12px";
+    t.style.background="rgba(0,0,0,.85)";
+    t.style.color="#fff";
+    t.style.fontWeight="900";
+    t.style.fontFamily="system-ui, -apple-system, Segoe UI, Roboto, Arial";
+    t.style.pointerEvents="none";
     document.body.appendChild(t);
     setTimeout(()=>{ try{ t.remove(); }catch{} }, 650);
   }
 
-  let sx=0, sy=0, t0=0, tracking=false;
-  let lastFire=0;
+  function shouldIgnoreTarget(target){
+    if(!target) return false;
 
-  const MIN_X = 90;      // bigger so it’s intentional
-  const MAX_MS = 900;
-  const DOMINANCE = 1.25;
+    // don't swipe when rhyme dock open
+    if(el.rhymeDock && el.rhymeDock.style.display === "block") return true;
 
-  function start(e){
-    if(el.rhymeDock && el.rhymeDock.style.display === "block") return;
+    // block swipes that START on the top control panel
+    if(target.closest && target.closest("#panelBody")) return true;
 
-    const pt = e.touches && e.touches[0];
-    if(!pt) return;
+    // also block swipes that start on buttons/selects (prevents accidental page flips)
+    const tag = (target.tagName || "").toUpperCase();
+    if(tag === "BUTTON" || tag === "SELECT") return true;
 
-    const target = e.target;
-
-    // ✅ do NOT block inputs anymore — we WANT swipes anywhere
-    // Only block if user started inside the top panel controls
-    if(target && target.closest && target.closest("#panelBody")) return;
-
-    sx = pt.clientX; sy = pt.clientY; t0 = performance.now();
-    tracking = true;
+    return false;
   }
 
-  function end(e){
+  function onDown(e){
+    // Only care about primary pointer (finger)
+    if(e.pointerType && e.pointerType !== "touch") return;
+    if(shouldIgnoreTarget(e.target)) return;
+
+    tracking = true;
+    sx = e.clientX;
+    sy = e.clientY;
+    t0 = performance.now();
+  }
+
+  function onUp(e){
     if(!tracking) return;
     tracking = false;
 
-    const pt = e.changedTouches && e.changedTouches[0];
-    if(!pt) return;
-
-    const dx = pt.clientX - sx;
-    const dy = pt.clientY - sy;
+    const dx = e.clientX - sx;
+    const dy = e.clientY - sy;
     const dt = performance.now() - t0;
 
     if(dt > MAX_MS) return;
@@ -3969,7 +3976,7 @@ function installSectionSwipe(){
     if(Math.abs(dx) < Math.abs(dy) * DOMINANCE) return;
 
     const nowMs = performance.now();
-    if(nowMs - lastFire < 250) return;
+    if(nowMs - lastFire < COOLDOWN) return;
     lastFire = nowMs;
 
     if(dx < 0){
@@ -3981,10 +3988,10 @@ function installSectionSwipe(){
     }
   }
 
-  // attach to the scroll area (this is the important part)
-  root.addEventListener("touchstart", start, { passive:true });
-  root.addEventListener("touchend", end, { passive:true });
-  root.addEventListener("touchcancel", ()=>{ tracking=false; }, { passive:true });
+  // Capture phase so it still works even when starting on textarea/input
+  document.addEventListener("pointerdown", onDown, { capture:true, passive:true });
+  document.addEventListener("pointerup", onUp, { capture:true, passive:true });
+  document.addEventListener("pointercancel", ()=>{ tracking=false; }, { capture:true, passive:true });
 
   // desktop arrows still work
   document.addEventListener("keydown", (e)=>{
@@ -3993,11 +4000,8 @@ function installSectionSwipe(){
     if(e.key === "ArrowRight") nextSection();
   });
 
-  // global flag you can check in console if needed
   window.__SWIPE_INSTALLED__ = true;
 }
-
-
 /***********************
 Wiring
 ***********************/
