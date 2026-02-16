@@ -586,57 +586,199 @@ function scheduleCleanup(nodes, ms){
 }
 
 /***********************
-Basic drum building blocks
+BETTER RAP DRUMS (replacement)
+Kick = sub + punch + click
+Snare = noise snap + tone body + tiny room
+Hat = tight noise with bandpass + HP
 ***********************/
-function pluck(freq=440, ms=180, gain=0.08, type="sine"){
-  const ctx = ensureCtx();
-  const t0 = ctx.currentTime;
+function makeNoiseBuffer(ctx, ms){
+  const n = Math.max(256, Math.floor(ctx.sampleRate * (ms/1000)));
+  const buf = ctx.createBuffer(1, n, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  for(let i=0;i<n;i++){
+    // slight decay so it feels like a real transient
+    const fade = 1 - (i / n);
+    d[i] = (Math.random()*2 - 1) * fade;
+  }
+  return buf;
+}
 
-  const o = ctx.createOscillator();
-  const g = ctx.createGain();
-
-  o.type = type;
-  o.frequency.value = freq;
-
+function quickEnv(g, t0, a, d, peak){
   g.gain.setValueAtTime(0.0001, t0);
-  g.gain.exponentialRampToValueAtTime(gain, t0 + 0.01);
-  g.gain.exponentialRampToValueAtTime(0.0001, t0 + ms/1000);
-
-  o.connect(g);
-  g.connect(getOutNode());
-
-  o.start(t0);
-  o.stop(t0 + ms/1000 + 0.02);
-
-  scheduleCleanup([o,g], ms + 80);
+  g.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), t0 + a);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + a + d);
 }
 
-function noise(ms=40, gain=0.08){
+function rapKick(vel=1.0){
   const ctx = ensureCtx();
-  const bufferSize = Math.max(256, Math.floor(ctx.sampleRate * (ms/1000)));
-  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-  const data = buffer.getChannelData(0);
-  for(let i=0;i<data.length;i++) data[i] = (Math.random()*2-1);
+  const t0 = ctx.currentTime;
+  const v = clamp(vel, 0.2, 1.2);
 
-  const src = ctx.createBufferSource();
-  src.buffer = buffer;
+  // sub
+  const sub = ctx.createOscillator();
+  sub.type = "sine";
+  sub.frequency.setValueAtTime(58, t0);
+  sub.frequency.exponentialRampToValueAtTime(38, t0 + 0.11);
+
+  const subG = ctx.createGain();
+  // tighter + louder than your old kick, still safe
+  subG.gain.setValueAtTime(0.0001, t0);
+  subG.gain.exponentialRampToValueAtTime(0.22 * v, t0 + 0.006);
+  subG.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.18);
+
+  // punch (higher sine)
+  const punch = ctx.createOscillator();
+  punch.type = "sine";
+  punch.frequency.setValueAtTime(115, t0);
+  punch.frequency.exponentialRampToValueAtTime(72, t0 + 0.07);
+
+  const punchG = ctx.createGain();
+  punchG.gain.setValueAtTime(0.0001, t0);
+  punchG.gain.exponentialRampToValueAtTime(0.10 * v, t0 + 0.004);
+  punchG.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.11);
+
+  // click (tiny noise)
+  const click = ctx.createBufferSource();
+  click.buffer = makeNoiseBuffer(ctx, 10);
+
+  const hp = ctx.createBiquadFilter();
+  hp.type = "highpass";
+  hp.frequency.value = 1400;
+  hp.Q.value = 0.7;
+
+  const clickG = ctx.createGain();
+  quickEnv(clickG, t0, 0.001, 0.02, 0.06 * v);
+
+  // mild saturation
+  const sh = makeWaveshaper(ctx, 1.4);
+
+  // route
+  sub.connect(subG);
+  punch.connect(punchG);
+
+  subG.connect(sh);
+  punchG.connect(sh);
+
+  click.connect(hp);
+  hp.connect(clickG);
+  clickG.connect(sh);
+
+  sh.connect(getOutNode());
+
+  sub.start(t0);   sub.stop(t0 + 0.25);
+  punch.start(t0); punch.stop(t0 + 0.16);
+  click.start(t0); click.stop(t0 + 0.04);
+
+  scheduleCleanup([sub,subG,punch,punchG,click,hp,clickG,sh], 600);
+}
+
+function rapSnare(vel=1.0){
+  const ctx = ensureCtx();
+  const t0 = ctx.currentTime;
+  const v = clamp(vel, 0.2, 1.2);
+
+  // noise snap
+  const ns = ctx.createBufferSource();
+  ns.buffer = makeNoiseBuffer(ctx, 70);
+
+  const bp = ctx.createBiquadFilter();
+  bp.type = "bandpass";
+  bp.frequency.value = 2500;
+  bp.Q.value = 0.9;
+
+  const snapG = ctx.createGain();
+  quickEnv(snapG, t0, 0.001, 0.11, 0.18 * v);
+
+  // body tone
+  const tone = ctx.createOscillator();
+  tone.type = "triangle";
+  tone.frequency.setValueAtTime(190, t0);
+
+  const toneG = ctx.createGain();
+  quickEnv(toneG, t0, 0.001, 0.12, 0.06 * v);
+
+  // tiny room (quick slap) — safe & small
+  const dly = ctx.createDelay(0.2);
+  dly.delayTime.value = 0.06;
+
+  const fb = ctx.createGain();
+  fb.gain.value = 0.12;
+
+  const roomLP = ctx.createBiquadFilter();
+  roomLP.type = "lowpass";
+  roomLP.frequency.value = 3200;
+  roomLP.Q.value = 0.3;
+
+  const wet = ctx.createGain();
+  wet.gain.value = 0.12;
+
+  // route dry bus
+  const dry = ctx.createGain();
+  dry.gain.value = 1.0;
+
+  ns.connect(bp);
+  bp.connect(snapG);
+  snapG.connect(dry);
+
+  tone.connect(toneG);
+  toneG.connect(dry);
+
+  // room send
+  dry.connect(dly);
+  dly.connect(roomLP);
+  roomLP.connect(fb);
+  fb.connect(dly);
+  roomLP.connect(wet);
+
+  // mild saturation to make it “mean”
+  const sh = makeWaveshaper(ctx, 1.6);
+
+  dry.connect(sh);
+  wet.connect(sh);
+  sh.connect(getOutNode());
+
+  ns.start(t0);   ns.stop(t0 + 0.10);
+  tone.start(t0); tone.stop(t0 + 0.14);
+
+  scheduleCleanup([ns,bp,snapG,tone,toneG,dly,fb,roomLP,wet,dry,sh], 900);
+}
+
+function rapHat(vel=1.0){
+  const ctx = ensureCtx();
+  const t0 = ctx.currentTime;
+  const v = clamp(vel, 0.15, 1.2);
+
+  const ns = ctx.createBufferSource();
+  ns.buffer = makeNoiseBuffer(ctx, 25);
+
+  const hp = ctx.createBiquadFilter();
+  hp.type = "highpass";
+  hp.frequency.value = 5200;
+  hp.Q.value = 0.6;
+
+  const bp = ctx.createBiquadFilter();
+  bp.type = "bandpass";
+  bp.frequency.value = 9000;
+  bp.Q.value = 0.8;
 
   const g = ctx.createGain();
-  const t0 = ctx.currentTime;
-  g.gain.setValueAtTime(gain, t0);
-  g.gain.exponentialRampToValueAtTime(0.0001, t0 + ms/1000);
+  quickEnv(g, t0, 0.001, 0.035, 0.055 * v);
 
-  src.connect(g);
+  ns.connect(hp);
+  hp.connect(bp);
+  bp.connect(g);
   g.connect(getOutNode());
-  src.start();
 
-  scheduleCleanup([src,g], ms + 120);
+  ns.start(t0);
+  ns.stop(t0 + 0.05);
+
+  scheduleCleanup([ns,hp,bp,g], 400);
 }
 
-function drumHit(kind){
-  if(kind === "kick") pluck(70, 120, 0.16, "sine");
-  if(kind === "snare"){ noise(60, 0.10); pluck(180, 70, 0.05, "square"); }
-  if(kind === "hat"){ noise(25, 0.05); }
+function drumHit(kind, vel=1.0){
+  if(kind === "kick") return rapKick(vel);
+  if(kind === "snare") return rapSnare(vel);
+  if(kind === "hat") return rapHat(vel);
 }
 
 /***********************
@@ -2231,27 +2373,34 @@ function startDrums(){
     if(!state.drumsOn) return;
     const s = step % 16;
 
-    if(state.drumStyle === "rap"){
-      if(s === 0 || s === 8) drumHit("kick");
-      if(s === 4 || s === 12) drumHit("snare");
-      drumHit("hat");
-    } else if(state.drumStyle === "rock"){
-      if(s === 0 || s === 8) drumHit("kick");
-      if(s === 4 || s === 12) drumHit("snare");
-      if(s % 2 === 0) drumHit("hat");
-    } else if(state.drumStyle === "hardrock"){
-      if(s === 4 || s === 12) drumHit("snare");
-      if(s === 0 || s === 3 || s === 6 || s === 8 || s === 11 || s === 14) drumHit("kick");
-      drumHit("hat");
-    } else {
-      if(s === 0 || s === 7 || s === 8) drumHit("kick");
-      if(s === 4 || s === 12) drumHit("snare");
-      if(s % 2 === 0) drumHit("hat");
-    }
+  if(state.drumStyle === "rap"){
+  // 16-step grid per bar
+  // Snare on 2 & 4 (steps 4 and 12)
+  if(s === 4 || s === 12) drumHit("snare", 1.15);
 
-    step++;
-  }, stepMs);
+  // Nasty bounce kick pattern (more rap-like)
+  if(s === 0) drumHit("kick", 1.10);
+  if(s === 3) drumHit("kick", 0.85);   // pre-snare push
+  if(s === 8) drumHit("kick", 1.05);
+  if(s === 10) drumHit("kick", 0.80);  // late bounce
+  if(s === 14) drumHit("kick", 0.78);  // lead into next bar
+
+  // Hats: mostly 8ths with velocity movement + occasional doubles
+  const isHatStep = (s % 2 === 0); // 8ths
+  if(isHatStep){
+    // offbeats a little louder
+    const offbeat = (s % 4 === 2);
+    const vel = offbeat ? 0.95 : 0.75;
+    drumHit("hat", vel);
+  }
+
+  // occasional 16th hat doubles (gives “nasty” feel)
+  if(s === 7 || s === 15){
+    setTimeout(()=>{ if(state.drumsOn && state.drumStyle==="rap") drumHit("hat", 0.65); }, 35);
+    setTimeout(()=>{ if(state.drumsOn && state.drumStyle==="rap") drumHit("hat", 0.55); }, 70);
+  }
 }
+
 
 function stopInstrument(){
   state.instrumentOn = false;
