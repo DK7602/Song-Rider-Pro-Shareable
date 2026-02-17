@@ -3700,9 +3700,17 @@ async function startRecording(){
 
   const micGain = ctx.createGain();
   micGain.gain.value = 0.62;
+const micCompressor = ctx.createDynamicsCompressor();
+micCompressor.threshold.value = -18;  // start compressing earlier
+micCompressor.knee.value = 20;
+micCompressor.ratio.value = 4;
+micCompressor.attack.value = 0.003;
+micCompressor.release.value = 0.25;
 
-  micSource.connect(micGain);
-  micGain.connect(state.recMix);
+ micSource.connect(micGain);
+micGain.connect(micCompressor);
+micCompressor.connect(state.recMix);
+
 
   const options = {};
   const mt = pickBestMimeType();
