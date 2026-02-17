@@ -3699,7 +3699,7 @@ async function startRecording(){
   state.recMicSource = micSource;
 
   const micGain = ctx.createGain();
-  micGain.gain.value = 0.7;
+  micGain.gain.value = 0.62;
 
   micSource.connect(micGain);
   micGain.connect(state.recMix);
