@@ -3655,7 +3655,7 @@ async function convertRecordingBlobToMp3(blob){
   if(!hasLame()) return blob;
 
   try{
-    const mp3 = await encodeMp3FromBlob(blob, { kbps: 160 });
+    const mp3 = await encodeMp3FromBlob(blob, { kbps: 192 });
     // sanity check (tiny files can happen if decode fails)
     if(mp3 && mp3.size > 800) return mp3;
     return blob;
@@ -3679,21 +3679,51 @@ function pickBestMimeType(){
   }
   return "";
 }
+/***********************
+MIC "MUSIC MODE" (Android fix)
+- disables phone-call processing (AEC/NS/AGC)
+***********************/
+const MUSIC_MODE_CONSTRAINTS = {
+  audio: {
+    echoCancellation: false,
+    noiseSuppression: false,
+    autoGainControl: false,
+
+    // optional but helpful requests:
+    channelCount: 2,
+    sampleRate: 48000,
+    sampleSize: 16,
+
+    // legacy Chrome/Android flags (still often honored)
+    googEchoCancellation: false,
+    googNoiseSuppression: false,
+    googAutoGainControl: false,
+    googHighpassFilter: false,
+    googTypingNoiseDetection: false
+  }
+};
+
+// Keep 1 mic stream at a time (prevents Android getting "stuck" in call mode)
+async function getMicStreamMusicMode(){
+  try{
+    if(state.recMicStream){
+      state.recMicStream.getTracks().forEach(t => t.stop());
+    }
+  }catch{}
+  state.recMicStream = null;
+
+  const s = await navigator.mediaDevices.getUserMedia(MUSIC_MODE_CONSTRAINTS);
+  state.recMicStream = s;
+  return s;
+}
 
 async function startRecording(){
   ensureCtx();
   ensureRecordingBus();
 
-  // Get mic
-  const micStream = await navigator.mediaDevices.getUserMedia({
-    audio: {
-      echoCancellation: true,
-      noiseSuppression: true,
-      autoGainControl: true
-    }
-  });
+  // Get mic (✅ MUSIC MODE: avoids phone-call processing on Android)
+  const micStream = await getMicStreamMusicMode();
 
-  state.recMicStream = micStream;
   state.recChunks = [];
 
   const ctx = ensureCtx();
