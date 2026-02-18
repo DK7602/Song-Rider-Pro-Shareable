@@ -1498,7 +1498,12 @@ function electricGuitarSafe(ctx, freq, durMs, vel=0.85){
   lp1.connect(sh);
   sh.connect(cab.in);
   cab.out.connect(notch);
-  notch.connect(env);
+notch.connect(env);
+
+// ✅ FINAL VOLUME TRIM (guaranteed)
+const outTrim = ctx.createGain();
+outTrim.gain.value = 0.22;   // try 0.15 if still loud
+env.connect(outTrim);
 
   o1.start(t0);
   o2.start(t0);
@@ -1510,10 +1515,9 @@ function electricGuitarSafe(ctx, freq, durMs, vel=0.85){
   o1.stop(stopAt);
   o2.stop(stopAt);
 
-  scheduleCleanup([pre,o1,o2,g1,g2,pick,pickBP,pickG,lp1,sh,notch,env, ...cab.nodes], durMs + 1200);
-  return { out: env, nodes:[pre,o1,o2,g1,g2,pick,pickBP,pickG,lp1,sh,notch,env, ...cab.nodes] };
+  scheduleCleanup([pre,o1,o2,g1,g2,pick,pickBP,pickG,lp1,sh,notch,env,outTrim, ...cab.nodes], durMs + 1200);
+return { out: outTrim, nodes:[pre,o1,o2,g1,g2,pick,pickBP,pickG,lp1,sh,notch,env,outTrim, ...cab.nodes] };
 }
-
 /***********************
 CHORD PLAYERS
 ***********************/
