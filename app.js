@@ -1476,7 +1476,7 @@ function electricGuitarSafe(ctx, freq, durMs, vel=0.85){
 
   // envelope at the end
   const env = ctx.createGain();
-  const peak = 0.12 * clamp(vel, 0.2, 1.0);
+  const peak = 0.08 * clamp(vel, 0.2, 1.0);
 
   env.gain.setValueAtTime(0.0001, t0);
   env.gain.exponentialRampToValueAtTime(peak, t0 + 0.006);
@@ -1610,7 +1610,7 @@ function playElectricChord(ch, durMs){
   wet.connect(getOutNode());
 
   const dryBus = ctx.createGain();
-  dryBus.gain.value = 0.55;
+  dryBus.gain.value = 0.4;
   dryBus.connect(getOutNode());
   dryBus.connect(room.in);
 
