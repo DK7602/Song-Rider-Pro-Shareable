@@ -186,7 +186,9 @@ function parseFullTextToSectionCards(fullText){
 
   function flushCard(){
     // blank-line ends a card
-    const blockLines = acc.map(x => String(x || "").trim()).filter(Boolean);
+    const blockLines = acc
+  .map(x => String(x || "").trim())
+  .filter(Boolean); // ✅ trims whitespace-only lines so they never become “blank cards”
     acc = [];
     if(!blockLines.length) return;
 
@@ -304,16 +306,17 @@ function defaultProject(name="New Song"){
   SECTIONS.filter(s=>s!=="Full").forEach(sec => {
     sections[sec] = [ newLine() ]; // ✅ start with ONE card
   });
-  return {
-    id: uuid(),
-    name,
-    createdAt: now(),
-    updatedAt: now(),
-    bpm: 95,
-    capo: 0,
-    fullText: "",
-    sections
-  };
+ return {
+  id: uuid(),
+  name,
+  createdAt: now(),
+  updatedAt: now(),
+  bpm: 95,
+  capo: 0,
+  fullText: "",
+  fullSeeded: false,   // ✅ NEW
+  sections
+};
 }
 
 function loadAllProjects(){
@@ -350,6 +353,7 @@ function normalizeProject(p){
   if(!p || typeof p !== "object") return null;
 
   if(typeof p.fullText !== "string") p.fullText = "";
+  if(typeof p.fullSeeded !== "boolean") p.fullSeeded = false; // ✅ NEW
   if(!p.sections || typeof p.sections !== "object") p.sections = {};
   if(!Number.isFinite(p.bpm)) p.bpm = 95;
   if(!Number.isFinite(p.capo)) p.capo = 0;
@@ -3101,7 +3105,25 @@ function renderSheetActions(){
   el.sheetActions.innerHTML = "";
   if(state.currentSection === "Full") return;
 }
+function buildFullTemplate(){
+  return `VERSE 1
+Type your lyrics here (line 1)
+Type your lyrics here (line 2)
 
+CHORUS 1
+Type your chorus here
+
+VERSE 2
+
+CHORUS 2
+
+VERSE 3
+
+BRIDGE
+
+CHORUS 3
+`;
+}
 function renderSheet(){
   el.sheetTitle.textContent = state.currentSection;
   renderSheetActions();
@@ -3128,7 +3150,15 @@ Line 2
 CHORUS 1
 ...`;
 
-  ta.value = state.project.fullText || "";
+  // ✅ Auto-seed the template only ONCE per project when empty
+if(!String(state.project.fullText || "").trim() && !state.project.fullSeeded){
+  state.project.fullText = buildFullTemplate();
+  state.project.fullSeeded = true;
+  upsertProject(state.project);
+}
+
+ta.value = state.project.fullText || "";
+
 
   // Fill the available space better (no index.html edits required)
   ta.style.width = "100%";
