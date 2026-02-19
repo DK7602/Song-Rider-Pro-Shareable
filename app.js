@@ -3453,7 +3453,8 @@ card.appendChild(delBtn);
 
     const syll = document.createElement("div");
     syll.className = "syllPill";
-    syll.textContent = "Syllables: " + countSyllablesInline(line.lyrics || "");
+ updateSyllPill(syll, line.lyrics || "");
+
 
     top.appendChild(num);
     top.appendChild(syll);
@@ -3545,35 +3546,57 @@ card.appendChild(delBtn);
     }
 
     lyr.addEventListener("input", () => {
-      line.lyrics = lyr.value;
-      syll.textContent = "Syllables: " + countSyllablesInline(line.lyrics || "");
-      upsertProject(state.project);
-      updateFullIfVisible();
+     line.lyrics = lyr.value;
 
-      refreshRhymesFromActive();
+// ✅ syll pill text + glow band
+updateSyllPill(syll, line.lyrics || "");
 
-      if(state.autoSplit){
-        const boxes = autosplitBeatsFromLyrics(line.lyrics);
-        line.beats = boxes;
-        for(let k=0;k<4;k++){
-          beatInputs[k].value = line.beats[k] || "";
-        }
-        upsertProject(state.project);
-        updateFullIfVisible();
-      }
+upsertProject(state.project);
+updateFullIfVisible();
 
-      if(state.autoSplit && lyr.value.includes("\n")){
-        const parts = lyr.value.split("\n");
-        const first = parts.shift();
-        line.lyrics = first;
-        const rest = parts.join("\n").trim();
+refreshRhymesFromActive();
 
-        if(rest){
-          const nl = newLine();
-          nl.lyrics = rest;
-          nl.beats = autosplitBeatsFromLyrics(rest);
-          arr.splice(idx+1, 0, nl);
-        }
+// ✅ AutoSplit stays ON, but "/" overrides this one line
+if(state.autoSplit){
+  applyBeatsFromLyrics(line);
+
+  for(let k=0;k<4;k++){
+    beatInputs[k].value = line.beats[k] || "";
+  }
+
+  upsertProject(state.project);
+  updateFullIfVisible();
+}
+
+
+    if(state.autoSplit && lyr.value.includes("\n")){
+  const parts = lyr.value.split("\n");
+  const first = parts.shift();
+  line.lyrics = first;
+
+  // ✅ update current card beats & pill after trimming to first line
+  updateSyllPill(syll, line.lyrics || "");
+  applyBeatsFromLyrics(line);
+
+  // refresh the visible beat boxes for the current card
+  for(let k=0;k<4;k++){
+    beatInputs[k].value = line.beats[k] || "";
+  }
+
+  const rest = parts.join("\n").trim();
+
+  if(rest){
+    const nl = newLine();
+    nl.lyrics = rest;
+
+    // ✅ new card also respects "/" manual override if present
+    if(state.autoSplit){
+      applyBeatsFromLyrics(nl);
+    }
+
+    arr.splice(idx+1, 0, nl);
+  }
+ 
 
         
         upsertProject(state.project);
