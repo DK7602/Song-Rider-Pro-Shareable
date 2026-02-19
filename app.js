@@ -4653,70 +4653,68 @@ Header: inject Undo / Redo / Save buttons
 - Replaces the AutoSplit button UI without disabling AutoSplit behavior
 ***********************/
 function injectHeaderEditControls(){
-  // 1) Hide/remove the old AutoSplit button UI (functionality stays on)
+  // Anchor: where AutoSplit used to be
   const autoBtn = document.getElementById("autoSplitBtn");
-  const parent = autoBtn ? autoBtn.parentElement : null;
 
-  // If we can’t find a place to insert, bail safely
-  if(!parent){
-    if(autoBtn) autoBtn.style.display = "none";
-    return;
-  }
+  // Pick the exact container row that holds AutoSplit
+  // (fallbacks included so it never silently fails)
+  const parent =
+    (autoBtn && autoBtn.parentElement) ||
+    (document.getElementById("bpmInput") && document.getElementById("bpmInput").parentElement) ||
+    document.querySelector("header") ||
+    document.body;
 
-  // Already injected?
-  if(document.getElementById("undoBtn")) {
-    if(autoBtn) autoBtn.style.display = "none";
-    updateUndoRedoUI();
-    return;
-  }
-
-  // Small circular icon buttons
-  const mkIconBtn = (id, label, title) => {
-    const b = document.createElement("button");
-    b.id = id;
-    b.type = "button";
-    b.className = "miniIconBtn";
+  // Helper: get existing button or create it
+  const getOrMakeBtn = (id, cls, label, title) => {
+    let b = document.getElementById(id);
+    if(!b){
+      b = document.createElement("button");
+      b.id = id;
+      b.type = "button";
+      parent.appendChild(b);
+    }
+    b.className = cls;
     b.textContent = label;
     b.title = title;
     b.setAttribute("aria-label", title);
     return b;
   };
 
-  const undo = mkIconBtn("undoBtn", "↶", "Undo");
-  const redo = mkIconBtn("redoBtn", "↷", "Redo");
+  // Create/reuse buttons
+  const undo = getOrMakeBtn("undoBtn", "miniIconBtn", "↶", "Undo");
+  const redo = getOrMakeBtn("redoBtn", "miniIconBtn", "↷", "Redo");
+  const save = getOrMakeBtn("quickSaveBtn", "miniSaveBtn", "💾", "Save");
 
-  const save = document.createElement("button");
-  save.id = "quickSaveBtn";
-  save.type = "button";
-  save.className = "miniSaveBtn";
-  save.textContent = "💾";
-  save.title = "Save";
-  save.setAttribute("aria-label", "Save");
+  // Make sure they are in the header row, in the right order:
+  // Undo, Redo, Save (where AutoSplit was)
+  // Move = appendChild/insertBefore automatically detaches from old location
+  if(autoBtn && autoBtn.parentElement === parent){
+    parent.insertBefore(undo, autoBtn);
+    parent.insertBefore(redo, autoBtn);
+    parent.insertBefore(save, autoBtn);
+  }else{
+    // fallback: put them at the start of parent
+    parent.insertBefore(save, parent.firstChild);
+    parent.insertBefore(redo, save);
+    parent.insertBefore(undo, redo);
+  }
 
-  // Insert: Undo, Redo, Save, then (hidden) AutoSplit
-  parent.insertBefore(undo, autoBtn);
-  parent.insertBefore(redo, autoBtn);
-  parent.insertBefore(save, autoBtn);
+  // Hide AutoSplit button UI (functionality stays ON via state.autoSplit=true)
+  if(autoBtn) autoBtn.style.display = "none";
 
-  // Now hide AutoSplit button (space stays used by our buttons)
-  autoBtn.style.display = "none";
-
-  // Wire click handlers
-  undo.addEventListener("click", (e)=>{ e.preventDefault(); doUndo(); });
-  redo.addEventListener("click", (e)=>{ e.preventDefault(); doRedo(); });
-
-  save.addEventListener("click", (e)=>{
+  // Wire handlers (idempotent: remove old by overwriting onclick)
+  undo.onclick = (e) => { e.preventDefault(); doUndo(); };
+  redo.onclick = (e) => { e.preventDefault(); doRedo(); };
+  save.onclick = (e) => {
     e.preventDefault();
-    // force a commit + save (even though SRP already autosaves)
     historyCommitIfChanged();
     if(state.project) upsertProject(state.project);
 
-    // tiny visual "saved" pulse
     save.classList.add("savedPulse");
     setTimeout(()=>save.classList.remove("savedPulse"), 260);
-  });
+  };
 
-  // Add CSS once
+  // CSS (once)
   if(!document.getElementById("srpEditBtnsCss")){
     const st = document.createElement("style");
     st.id = "srpEditBtnsCss";
