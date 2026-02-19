@@ -121,7 +121,6 @@ function injectBspCardLook(){
   const style = document.createElement("style");
   style.id = "srpBspCardLook";
   style.textContent = `
-    style.textContent = `
     /* ===== REEL-IN CARD LOOK (2 cards visible, smaller text) ===== */
 
     .cards{
@@ -192,7 +191,7 @@ function injectBspCardLook(){
       min-height: 44px !important;   /* key: shorter */
     }
 
-    /* ===== FIX: + and × bunched together ===== */
+    /* ===== FIX: + and × placement ===== */
     .cardAdd, .cardDel{
       position: absolute !important;
       top: 10px !important;
@@ -217,91 +216,9 @@ function injectBspCardLook(){
       right: 52px !important;
     }
   `;
-
-    }
-    .card{
-      margin: 16px 0 !important;
-      padding: 16px !important;
-      border-radius: 18px !important;
-    }
-
-    /* Bigger top row spacing */
-    .cardTop{
-      gap: 12px !important;
-      margin-bottom: 10px !important;
-      align-items: center !important;
-    }
-    .cardNum{
-      width: 44px !important;
-      height: 44px !important;
-      font-size: 20px !important;
-      font-weight: 900 !important;
-      display:flex !important;
-      align-items:center !important;
-      justify-content:center !important;
-    }
-    .syllPill{
-      font-size: 18px !important;
-      font-weight: 900 !important;
-      padding: 10px 14px !important;
-      border-radius: 18px !important;
-    }
-
-    /* Notes row (blue boxes) slightly larger */
-    .notesRow{
-      gap: 10px !important;
-      margin-bottom: 12px !important;
-    }
-    input.noteCell{
-      height: 52px !important;
-      min-height: 52px !important;
-      font-size: 18px !important;
-      font-weight: 900 !important;
-      border-radius: 14px !important;
-      text-align: center !important;
-    }
-
-/* LYRICS: 2-cards-fit tuning (shorter + less bold) */
-textarea.lyrics{
-  font-size: 22px !important;
-  font-weight: 650 !important;
-  line-height: 1.16 !important;
-
-  padding: 10px !important;
-  border-radius: 14px !important;
-
-  min-height: 86px !important;  /* key: shorter */
-}
-
-/* Beat boxes: 2-cards-fit tuning */
-textarea.beatCell{
-  font-size: 17px !important;
-  font-weight: 650 !important;
-  line-height: 1.12 !important;
-
-  padding: 8px 8px !important;
-  border-radius: 14px !important;
-
-  min-height: 52px !important;  /* key: shorter */
-}
-
-
-
-    /* Keep your tick highlight behavior, just make it feel “BSP bold” */
-    .tick{
-      filter: saturate(1.05);
-    }
-
-    /* Optional: make + and X a touch easier to hit (doesn't change color) */
-    .cardAdd, .cardDel{
-      width: 44px !important;
-      height: 44px !important;
-      font-size: 22px !important;
-      border-radius: 14px !important;
-    }
-  `;
   document.head.appendChild(style);
 }
+
 
 /***********************
 Active card + active lyrics
