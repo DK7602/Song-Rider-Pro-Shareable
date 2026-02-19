@@ -107,6 +107,105 @@ horseLeft: $("horseLeft"),
   rhymeWords: $("rhymeWords"),
   rhymeTitle: $("rhymeTitle")
 };
+/***********************
+SRP -> BSP CARD SIZE + FONT MATCH (CSS OVERRIDES)
+- Bigger cards like Beat Sheet Pro
+- Bigger + bolder lyric + beat fonts
+- Keeps your existing colors
+***********************/
+function injectBspCardLook(){
+  // prevent duplicates on hot reload
+  const old = document.getElementById("srpBspCardLook");
+  if(old) old.remove();
+
+  const style = document.createElement("style");
+  style.id = "srpBspCardLook";
+  style.textContent = `
+    /* Make the cards feel bigger (like BSP) */
+    .cards{
+      padding-bottom: 24px;
+    }
+    .card{
+      margin: 16px 0 !important;
+      padding: 16px !important;
+      border-radius: 18px !important;
+    }
+
+    /* Bigger top row spacing */
+    .cardTop{
+      gap: 12px !important;
+      margin-bottom: 10px !important;
+      align-items: center !important;
+    }
+    .cardNum{
+      width: 44px !important;
+      height: 44px !important;
+      font-size: 20px !important;
+      font-weight: 900 !important;
+      display:flex !important;
+      align-items:center !important;
+      justify-content:center !important;
+    }
+    .syllPill{
+      font-size: 18px !important;
+      font-weight: 900 !important;
+      padding: 10px 14px !important;
+      border-radius: 18px !important;
+    }
+
+    /* Notes row (blue boxes) slightly larger */
+    .notesRow{
+      gap: 10px !important;
+      margin-bottom: 12px !important;
+    }
+    input.noteCell{
+      height: 52px !important;
+      min-height: 52px !important;
+      font-size: 18px !important;
+      font-weight: 900 !important;
+      border-radius: 14px !important;
+      text-align: center !important;
+    }
+
+    /* LYRICS: match BSP feel (big + bold) */
+    textarea.lyrics{
+      font-size: 30px !important;   /* <-- main change */
+      font-weight: 900 !important;  /* <-- main change */
+      line-height: 1.18 !important;
+      padding: 16px !important;
+      border-radius: 18px !important;
+      min-height: 120px !important;
+    }
+
+    /* Beat boxes: bigger + bold like BSP */
+    .beatsRow{
+      gap: 12px !important;
+      margin-top: 12px !important;
+    }
+    textarea.beatCell{
+      min-height: 72px !important;
+      padding: 14px 12px !important;
+      border-radius: 18px !important;
+      font-size: 22px !important;
+      font-weight: 900 !important;
+      line-height: 1.12 !important;
+    }
+
+    /* Keep your tick highlight behavior, just make it feel “BSP bold” */
+    .tick{
+      filter: saturate(1.05);
+    }
+
+    /* Optional: make + and X a touch easier to hit (doesn't change color) */
+    .cardAdd, .cardDel{
+      width: 44px !important;
+      height: 44px !important;
+      font-size: 22px !important;
+      border-radius: 14px !important;
+    }
+  `;
+  document.head.appendChild(style);
+}
 
 /***********************
 Active card + active lyrics
@@ -4540,6 +4639,8 @@ Init
 ***********************/
 function init(){
   state.project = getCurrentProject();
+
+    injectBspCardLook(); // ✅ ADD THIS LINE
 
   applyProjectSettingsToUI();
 
