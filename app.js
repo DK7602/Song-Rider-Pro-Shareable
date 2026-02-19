@@ -132,7 +132,7 @@ function injectBspCardLook(){
       margin: 10px 0 !important;          /* tighter so 2 cards fit */
       padding: 12px !important;
       border-radius: 16px !important;
-      padding-top: 44px !important;       /* space for + / × without making card huge */
+      padding-top: 44px !important;       /* room for + / × */
     }
 
     /* Top row (number + syllables pill) smaller */
@@ -171,14 +171,14 @@ function injectBspCardLook(){
       text-align: center !important;
     }
 
-    /* LYRICS: smaller + less bold + shorter so 2 cards show */
+    /* LYRICS: smaller + shorter so 2 cards show */
     textarea.lyrics{
       font-size: 17px !important;
       font-weight: 600 !important;
       line-height: 1.18 !important;
       padding: 9px !important;
       border-radius: 12px !important;
-      min-height: 70px !important;   /* key: shorter */
+      min-height: 70px !important;
     }
 
     /* Beat boxes: smaller + shorter */
@@ -188,10 +188,10 @@ function injectBspCardLook(){
       line-height: 1.15 !important;
       padding: 7px !important;
       border-radius: 12px !important;
-      min-height: 44px !important;   /* key: shorter */
+      min-height: 44px !important;
     }
 
-    /* ===== FIX: + and × placement ===== */
+    /* ===== FIX: + and × spacing ===== */
     .cardAdd, .cardDel{
       position: absolute !important;
       top: 10px !important;
@@ -206,16 +206,10 @@ function injectBspCardLook(){
       line-height: 1 !important;
     }
 
-    /* Put X on the far right */
-    .cardDel{
-      right: 10px !important;
-    }
-
-    /* Put + to the LEFT of X with a clean gap */
-    .cardAdd{
-      right: 52px !important;
-    }
+    .cardDel{ right: 10px !important; }
+    .cardAdd{ right: 52px !important; }
   `;
+
   document.head.appendChild(style);
 }
 
