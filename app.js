@@ -4565,34 +4565,70 @@ async function fetchDatamuseNearRhymes(word, max = 24){
   }
 }
 
-function insertWordIntoLyrics(word){
-  if(!lastLyricsTextarea){
-    const first = el.sheetBody.querySelector("textarea.lyrics");
-    if(first) lastLyricsTextarea = first;
+function getLiveLyricsTextarea(){
+  // If we have one, ensure it's still connected to DOM
+  if(lastLyricsTextarea && lastLyricsTextarea.isConnected) return lastLyricsTextarea;
+
+  // Try active element first
+  const ae = document.activeElement;
+  if(ae && ae.tagName === "TEXTAREA" && ae.classList.contains("lyrics")) return ae;
+
+  // Try active card
+  if(lastActiveCardEl && lastActiveCardEl.isConnected){
+    const t = lastActiveCardEl.querySelector("textarea.lyrics");
+    if(t) return t;
   }
-  if(!lastLyricsTextarea) return;
 
-  const ta = lastLyricsTextarea;
-  ta.focus();
-
-  const start = ta.selectionStart ?? ta.value.length;
-  const end = ta.selectionEnd ?? ta.value.length;
-
-  const before = ta.value.slice(0, start);
-  const after = ta.value.slice(end);
-
-  const needsSpaceBefore = before.length && !/\s$/.test(before);
-  const needsSpaceAfter = after.length && !/^\s/.test(after);
-
-  const insert = (needsSpaceBefore ? " " : "") + word + (needsSpaceAfter ? " " : "");
-  ta.value = before + insert + after;
-
-  const newPos = (before + insert).length;
-  ta.selectionStart = ta.selectionEnd = newPos;
-
-  ta.dispatchEvent(new Event("input", { bubbles:true }));
+  // Fallback: nearest visible / first available
+  const first = el.sheetBody?.querySelector("textarea.lyrics");
+  return first || null;
 }
 
+function insertWordIntoLyrics(word){
+  const ta = getLiveLyricsTextarea();
+  if(!ta) return;
+
+  // Focus first; Android often needs a frame before selectionStart is reliable
+  ta.focus({ preventScroll:true });
+
+  const doInsert = () => {
+    // If the textarea got re-rendered between focus and now, re-resolve
+    const live = getLiveLyricsTextarea();
+    if(!live) return;
+
+    const w = String(word || "").trim();
+    if(!w) return;
+
+    const start = (typeof live.selectionStart === "number") ? live.selectionStart : live.value.length;
+    const end   = (typeof live.selectionEnd === "number") ? live.selectionEnd : live.value.length;
+
+    const before = live.value.slice(0, start);
+    const after  = live.value.slice(end);
+
+    const needsSpaceBefore = before.length && !/\s$/.test(before);
+    const needsSpaceAfter  = after.length && !/^\s/.test(after);
+
+    const insert = (needsSpaceBefore ? " " : "") + w + (needsSpaceAfter ? " " : "");
+
+    // Prefer setRangeText (best mobile behavior + preserves undo stack)
+    if(typeof live.setRangeText === "function"){
+      live.setRangeText(insert, start, end, "end");
+    }else{
+      live.value = before + insert + after;
+      const newPos = (before + insert).length;
+      try{ live.selectionStart = live.selectionEnd = newPos; }catch{}
+    }
+
+    // Trigger your normal pipeline
+    live.dispatchEvent(new Event("input", { bubbles:true }));
+
+    // Keep globals consistent
+    lastLyricsTextarea = live;
+    lastActiveCardEl = live.closest(".card") || lastActiveCardEl;
+  };
+
+  requestAnimationFrame(doInsert);
+}
 async function renderRhymes(seed){
   const word = normalizeWord(seed);
 
