@@ -3698,9 +3698,6 @@ delBtn.addEventListener("click", (e) => {
   syncFullTextFromSections();
 });
 
-  editProject("deleteCard", () => {
-  syncFullTextFromSections();
-});
   renderSheet();
   updateFullIfVisible();
   updateKeyFromAllNotes();
