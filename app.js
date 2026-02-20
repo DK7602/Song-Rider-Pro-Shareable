@@ -250,7 +250,52 @@ function injectHeaderMiniIconBtnStyle(){
   `;
   document.head.appendChild(style);
 }
+function injectHeaderControlTightStyle(){
+  const old = document.getElementById("srpHeaderControlTightStyle");
+  if(old) old.remove();
 
+  const style = document.createElement("style");
+  style.id = "srpHeaderControlTightStyle";
+  style.textContent = `
+    /* Tighten BPM + Transpose row without touching index.html */
+    #bpmInput{
+      width: 64px !important;          /* enough for 220 */
+      padding: 6px 6px !important;     /* less side padding */
+      text-align: center !important;
+      font-weight: 900 !important;
+    }
+
+    #capoInput{
+      width: 64px !important;          /* matches BPM width */
+      padding: 6px 6px !important;
+      text-align: center !important;
+      font-weight: 900 !important;
+    }
+
+    /* Vertical pill toggle between CAPO/STEP */
+    #capoStepToggle{
+      width: 26px !important;
+      height: 44px !important;
+      padding: 0 !important;
+      margin-left: 6px !important;
+      border-radius: 999px !important;
+
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+
+      writing-mode: vertical-rl !important;
+      text-orientation: mixed !important;
+      transform: rotate(180deg); /* makes it read top->bottom nicely */
+      letter-spacing: 0.5px !important;
+
+      font-size: 11px !important;
+      font-weight: 1000 !important;
+      line-height: 1 !important;
+    }
+  `;
+  document.head.appendChild(style);
+}
 
 /***********************
 Active card + active lyrics
@@ -675,10 +720,25 @@ lastAutoBar: -1,
   recMixWired: false,
   recKeepAlive: null,
 };
-  function getTransposeSemis(){
-  if(state.transposeMode === "step") return (state.steps|0);
-  return (state.capo|0); // capo mode
+function roundToHalf(n){
+  n = Number(n);
+  if(!Number.isFinite(n)) return 0;
+  return Math.round(n * 2) / 2;
 }
+
+function getTransposeSemis(){
+  // capo is always integer semis, step can be .5
+  if(state.transposeMode === "step") return roundToHalf(state.steps);
+  return Math.round(Number(state.capo) || 0);
+}
+
+// Helper: split into integer semis (for chord-name math) + fractional semis (for detune)
+function splitTranspose(semisFloat){
+  const s = Number(semisFloat) || 0;
+  const intSemis = Math.trunc(s);          // toward 0
+  const fracSemis = s - intSemis;          // -0.5..+0.5 possible
+  return { intSemis, fracSemis };
+} 
 
 /***********************
 UNDO / REDO (Project History)
@@ -1937,12 +1997,17 @@ function playSingleNoteForInstrument(rawChord, durMs){
   const ch0 = parseChordToken(rawChord);
   if(!ch0) return;
 
- const capo = (getTransposeSemis()|0) % 12;
-  const ch = {
-    ...ch0,
-    rootPC: (ch0.rootPC + capo + 12) % 12,
-    bassPC: (ch0.bassPC === null) ? null : ((ch0.bassPC + capo + 12) % 12)
-  };
+const tr = splitTranspose(getTransposeSemis());
+const capoInt = ((tr.intSemis % 12) + 12) % 12;
+
+const ch = {
+  ...ch0,
+  rootPC: (ch0.rootPC + capoInt + 12) % 12,
+  bassPC: (ch0.bassPC === null) ? null : ((ch0.bassPC + capoInt + 12) % 12)
+};
+
+// fractional semis applied as freq multiplier later
+const fracMul = Math.pow(2, (tr.fracSemis / 12));
 
   const ctx = ensureCtx();
 
@@ -1951,7 +2016,7 @@ function playSingleNoteForInstrument(rawChord, durMs){
   if(state.instrument === "piano") freqs = buildPianoVoicing(ch).map(midiToFreq);
   else freqs = buildGuitarStrumVoicing(ch).map(midiToFreq);
 
-  const f = freqs[Math.min(freqs.length-1, 3)] || freqs[0] || 440;
+  const f = (freqs[Math.min(freqs.length-1, 3)] || freqs[0] || 440) * fracMul;
 
   if(state.instrument === "acoustic"){
     const n = acousticPluckSafe(ctx, f, durMs, 0.95);
@@ -1968,7 +2033,7 @@ function playSingleNoteForInstrument(rawChord, durMs){
   }
 }
 
-  function playAcousticChord(ch, durMs){
+ function playAcousticChord(ch, durMs, fracMul=1){
   const ctx = ensureCtx();
   const token = state.audioToken;
 
@@ -1991,7 +2056,8 @@ function playSingleNoteForInstrument(rawChord, durMs){
 
   // strum
   const midi = buildGuitarStrumVoicing(ch);
-  const freqs = midi.map(midiToFreq);
+ const freqs = midi.map(midiToFreq).map(f => f * (fracMul || 1));
+
 
   const bpm = clamp(state.bpm||95, 40, 220);
   const strumMs = clamp(Math.round(24_000 / bpm), 12, 28);
@@ -2016,7 +2082,7 @@ function playSingleNoteForInstrument(rawChord, durMs){
 
 
 
-function playElectricChord(ch, durMs){
+function playElectricChord(ch, durMs, fracMul=1){
   const ctx = ensureCtx();
   const token = state.audioToken;
 
@@ -2031,7 +2097,8 @@ function playElectricChord(ch, durMs){
   dryBus.connect(room.in);
 
   const midi = buildGuitarStrumVoicing(ch);
-  const freqs = midi.map(midiToFreq);
+ const freqs = midi.map(midiToFreq).map(f => f * (fracMul || 1));
+
 
   const bpm = clamp(state.bpm||95, 40, 220);
   const strumMs = clamp(Math.round(20_000 / bpm), 10, 22);
@@ -2053,7 +2120,7 @@ function playElectricChord(ch, durMs){
   scheduleCleanup([dryBus,wet, ...room.nodes], durMs + 2200);
 }
 
-function playPianoChord(ch, durMs){
+function playPianoChord(ch, durMs, fracMul=1){
   const ctx = ensureCtx();
   const room = makeSoftRoom(ctx);
 
@@ -2069,7 +2136,7 @@ function playPianoChord(ch, durMs){
   wet.connect(getOutNode());
 
   const midi = buildPianoVoicing(ch);
-  const freqs = midi.map(midiToFreq);
+ const freqs = midi.map(midiToFreq).map(f => f * (fracMul || 1));
 
   const bpm = clamp(state.bpm||95, 40, 220);
   const rollMs = clamp(Math.round(16_000 / bpm), 6, 18);
@@ -2093,23 +2160,29 @@ function playChordForInstrument(rawChord, durMs){
   const ch0 = parseChordToken(rawChord);
   if(!ch0) return;
 
-  const capo = (getTransposeSemis()|0) % 12;
-  const ch = {
-    ...ch0,
-    rootPC: (ch0.rootPC + capo + 12) % 12,
-    bassPC: (ch0.bassPC === null) ? null : ((ch0.bassPC + capo + 12) % 12)
-  };
+  const tr = splitTranspose(getTransposeSemis());
+const capoInt = ((tr.intSemis % 12) + 12) % 12;
 
-  if(state.instrument === "acoustic") playAcousticChord(ch, durMs);
-  else if(state.instrument === "electric") playElectricChord(ch, durMs);
-  else playPianoChord(ch, durMs);
+const ch = {
+  ...ch0,
+  rootPC: (ch0.rootPC + capoInt + 12) % 12,
+  bassPC: (ch0.bassPC === null) ? null : ((ch0.bassPC + capoInt + 12) % 12)
+};
+
+// store multiplier so chord players can use it
+const fracMul = Math.pow(2, (tr.fracSemis / 12));
+
+  if(state.instrument === "acoustic") playAcousticChord(ch, durMs, fracMul);
+else if(state.instrument === "electric") playElectricChord(ch, durMs, fracMul);
+else playPianoChord(ch, durMs, fracMul);
 }
 
 /***********************
 Transpose display (now chord-aware)
 ***********************/
 function refreshDisplayedNoteCells(){
-  const semis = (getTransposeSemis()|0) % 12;
+  // chord-name transpose must be integer semis (round for display)
+  const semis = Math.round(getTransposeSemis()) % 12;
 
   document.querySelectorAll(".noteCell").forEach(inp => {
     const raw = inp.dataset.raw || inp.value || "";
@@ -2941,32 +3014,41 @@ function ensureCapoStepToggle(){
   btn.id = "capoStepToggle";
   btn.type = "button";
   btn.className = "miniIconBtn";
-  btn.style.marginLeft = "6px";
-  btn.style.width = "46px";
-  btn.style.borderRadius = "999px";
-  btn.style.fontSize = "12px";
-  btn.style.fontWeight = "1000";
-  btn.style.padding = "0 10px";
 
   function paint(){
     const mode = state.transposeMode || "capo";
     btn.textContent = (mode === "capo") ? "CAPO" : "STEP";
     btn.title = (mode === "capo")
-      ? "Capo mode (guitar shapes → sounding chords)"
-      : "Step mode (transpose by semitones)";
-    // adjust input range
+      ? "Capo mode (integer semitones)"
+      : "Step mode (supports 0.5)";
+
     if(mode === "capo"){
       el.capoInput.min = "0";
       el.capoInput.max = "12";
       el.capoInput.step = "1";
+      el.capoInput.value = String(Math.round(Number(state.capo)||0));
     }else{
       el.capoInput.min = "-24";
       el.capoInput.max = "24";
-      el.capoInput.step = "1";
+      el.capoInput.step = "0.5";                // ✅ half-steps
+      el.capoInput.value = String(roundToHalf(state.steps));
     }
-    // show the active value in the same box
-    el.capoInput.value = String(mode === "capo" ? (state.capo|0) : (state.steps|0));
   }
+
+  btn.addEventListener("click", () => {
+    editProject("transposeMode", () => {
+      state.transposeMode = (state.transposeMode === "capo") ? "step" : "capo";
+      if(state.project) state.project.transposeMode = state.transposeMode;
+    });
+
+    paint();
+    refreshDisplayedNoteCells();
+    updateKeyFromAllNotes();
+  });
+
+  el.capoInput.insertAdjacentElement("afterend", btn);
+  paint();
+}
 
   btn.addEventListener("click", () => {
     editProject("transposeMode", () => {
@@ -4556,7 +4638,7 @@ function applyProjectSettingsToUI(){
   state.bpm = clamp(parseInt(state.project.bpm,10) || 95, 40, 220);
   state.capo = clamp(parseInt(state.project.capo,10) || 0, 0, 12);
   state.transposeMode = state.project.transposeMode || "capo";
-state.steps = clamp(parseInt(state.project.steps,10) || 0, -24, 24);
+state.steps = clamp(roundToHalf(parseFloat(state.project.steps) || 0), -24, 24);
 
 
   if(el.bpmInput) el.bpmInput.value = String(state.bpm);
@@ -4775,6 +4857,7 @@ function updateAudioButtonsUI(){
   
   updateAudioButtonsUI();
     ensureCapoStepToggle();
+    injectHeaderControlTightStyle();
 }
 /***********************
 SECTION paging (swipe left/right)
