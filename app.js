@@ -3510,7 +3510,7 @@ function syncFullTextFromSections(){
     _fullSyncLock = false;
   }
 }
-}
+
 function renderSheet(){
   el.sheetTitle.textContent = state.currentSection;
   renderSheetActions();
