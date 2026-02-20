@@ -249,30 +249,19 @@
       height:34px;
       text-align:center;
     }
-    /* ✅ BPM pill with tiny label inside (label + input share one capsule) */
+/* ✅ BPM pill with tiny label inside (label + input share one capsule) */
 .tinyCombo{
   display:flex;
   align-items:center;
   gap:6px;
   height:34px;
-  padding:0 10px;
+  padding:0 8px;                 /* ✅ compact */
   border-radius:12px;
   border:1px solid rgba(0,0,0,.12);
   background:#fff;
   flex:0 0 auto;
 }
-/* ✅ BPM compact (prevents right-side overflow) */
-#bpmInput{
-  width:40px !important;
-  min-width:40px !important;
-  max-width:40px !important;
-}
 
-.tinyCombo{
-  padding:0 8px !important;
-  gap:6px !important;
-  flex:0 0 auto !important;
-}
 .tinyCombo .tinyLbl{
   font-size:10px;
   font-weight:1100;
@@ -280,6 +269,22 @@
   color:#666;
   line-height:1;
   user-select:none;
+}
+
+/* ✅ hard-force compact BPM input */
+#bpmInput{
+  width:40px !important;
+  min-width:40px !important;
+  max-width:40px !important;
+  height:32px;
+  border:none;
+  outline:none;
+  background:transparent;
+  padding:0;
+  font-size:13px;
+  text-align:center;
+  -webkit-appearance:none;
+  appearance:none;
 }
 
 .tinyCombo input{
@@ -737,6 +742,7 @@
 /* =========================
    CAPO / STEP TOGGLE (vertical letters, always visible)
 ========================= */
+/* ✅ Capo/Step toggle: visible + vertical + clickable */
 .capoStepWrap{
   display:flex;
   align-items:center;
@@ -747,7 +753,7 @@
 .capoStepToggle{
   height:34px;
   display:flex;
-  flex-direction:row;            /* ✅ side-by-side (not stacked) */
+  flex-direction:row;     /* side-by-side prevents text clipping */
   border:1px solid rgba(0,0,0,.12);
   background:#fff;
   border-radius:12px;
@@ -756,32 +762,30 @@
 }
 
 .capoStepToggle .cstOpt{
-  width:28px;                    /* ✅ enough width to show vertical text */
+  width:28px;
   height:34px;
   border:none;
   background:#fff;
   cursor:pointer;
   user-select:none;
 
-  /* ✅ vertical letters */
   writing-mode: vertical-rl;
   text-orientation: mixed;
 
-  font-weight:900;
+  font-weight:1100;
   font-size:11px;
   letter-spacing:.08em;
-  line-height:1;
 
   display:flex;
   align-items:center;
   justify-content:center;
 
- color:#111 !important;   /* 🔥 force visible */
+  color:#111 !important;
 }
 
 .capoStepToggle .cstOpt.active{
   background:#111;
-  color:#fff;                    /* ✅ force visible */
+  color:#fff !important;
 }
 /* =========================
    KEY WINDOW: keep on-screen (CSS safety net)
@@ -933,51 +937,40 @@
   </div>
 
   <!-- ✅ tiny helper: measure sticky header height into CSS var -->
-  <script>
-    (function(){
-      function syncHeaderH(){
-        var h = document.querySelector("header");
-        if(!h) return;
-        var r = h.getBoundingClientRect();
-        var px = Math.ceil(r.height || 0);
-        document.documentElement.style.setProperty("--headerH", px + "px");
-      }
-      window.addEventListener("load", syncHeaderH);
-      window.addEventListener("resize", syncHeaderH);
-      setTimeout(syncHeaderH, 60);
-      setTimeout(syncHeaderH, 300);
-    })();
-  </script>
-  <script>
-  // Capo/Step toggle wiring (index-level, safe even if app.js also touches it)
-  (function(){
-    const wrap = document.getElementById("capoStepToggle");
-    if(!wrap) return;
 
-    wrap.addEventListener("click", (e)=>{
-      const btn = e.target.closest(".cstOpt[data-mode]");
-      if(!btn) return;
-      const mode = btn.getAttribute("data-mode");
-
-      // Visual state
-      [...wrap.querySelectorAll(".cstOpt")].forEach(b=>{
-        const on = b.getAttribute("data-mode") === mode;
-        b.classList.toggle("active", on);
-        b.setAttribute("aria-pressed", on ? "true" : "false");
-      });
-
-      // Store mode so app.js can read it if needed
-      try{ localStorage.setItem("srp_capoStepMode", mode); }catch{}
-    });
-
-    // restore last state
-    let mode = "capo";
-    try{ mode = localStorage.getItem("srp_capoStepMode") || "capo"; }catch{}
-    const btn = wrap.querySelector(`.cstOpt[data-mode="${mode}"]`);
-    if(btn) btn.click();
-  })();
-</script>
 <script src="./lame.min.js?v=62"></script>
   <script src="./app.js?v=62"></script>
+  <script>
+/* ✅ Capo/Step Toggle Wiring (runs AFTER app.js) */
+window.addEventListener("load", function(){
+  const wrap = document.getElementById("capoStepToggle");
+  if(!wrap) return;
+
+  const capoBtn = wrap.querySelector('[data-mode="capo"]');
+  const stepBtn = wrap.querySelector('[data-mode="step"]');
+  if(capoBtn) capoBtn.textContent = "CAPO";
+  if(stepBtn) stepBtn.textContent = "STEP";
+
+  wrap.addEventListener("click", (e)=>{
+    const btn = e.target.closest('button[data-mode]');
+    if(!btn) return;
+    const mode = btn.getAttribute("data-mode");
+
+    wrap.querySelectorAll('button[data-mode]').forEach(b=>{
+      const on = b.getAttribute("data-mode") === mode;
+      b.classList.toggle("active", on);
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+
+    try{ localStorage.setItem("srp_capoStepMode", mode); }catch{}
+  });
+
+  let mode = "capo";
+  try{ mode = localStorage.getItem("srp_capoStepMode") || "capo"; }catch{}
+  const startBtn = wrap.querySelector(`button[data-mode="${mode}"]`);
+  if(startBtn) startBtn.click();
+});
+</script>
+
 </body>
 </html>
