@@ -129,20 +129,6 @@ saveBtn: $("saveBtn"),
   rhymeWords: $("rhymeWords"),
   rhymeTitle: $("rhymeTitle")
 };
-  // ✅ SAFETY: ensure Capo/Step toggle labels never get wiped
-(function forceCapoStepLabels(){
-  const wrap = document.getElementById("capoStepToggle");
-  if(!wrap) return;
-  const capoBtn = wrap.querySelector('[data-mode="capo"]');
-  const stepBtn = wrap.querySelector('[data-mode="step"]');
-
-  if(capoBtn) capoBtn.textContent = "CAPO";
-  if(stepBtn) stepBtn.textContent = "STEP";
-
-  // force readable colors just in case CSS got overridden
-  if(capoBtn) capoBtn.style.color = capoBtn.classList.contains("active") ? "#fff" : "#111";
-  if(stepBtn) stepBtn.style.color = stepBtn.classList.contains("active") ? "#fff" : "#111";
-})();
 /***********************
 SRP -> BSP CARD SIZE + FONT MATCH (CSS OVERRIDES)
 - Bigger cards like Beat Sheet Pro
@@ -290,75 +276,79 @@ function injectHeaderControlTightStyle(){
 
   const style = document.createElement("style");
   style.id = "srpHeaderControlTightStyle";
-  style.textContent = `
-    /* ===== HEADER ROW: never wrap, never stretch ===== */
-    #topControlsRow, .topControlsRow, .headerControls, header .headerControls, header .topControls{
-      display:flex !important;
-      flex-wrap:nowrap !important;
-      align-items:center !important;
-      gap:10px !important;
-      overflow-x:auto !important;
-      -webkit-overflow-scrolling:touch !important;
-    }
-    #topControlsRow > *, .topControlsRow > *, .headerControls > *, header .headerControls > *, header .topControls > *{
-      flex:0 0 auto !important;
-    }
+style.textContent = `
+  /* ===== TOP CONTROLS ROW: no wrap, allow scroll instead of cutting off ===== */
+  #topControlsRow{
+    display:flex !important;
+    flex-wrap:nowrap !important;
+    align-items:center !important;
+    gap:10px !important;
+    overflow-x:auto !important;
+    -webkit-overflow-scrolling:touch !important;
+  }
+  #topControlsRow > *{
+    flex:0 0 auto !important;
+    min-width:0 !important;
+  }
 
-    /* ===== BPM: compact again ===== */
-    #bpmBox, .bpmBox{
-      flex:0 0 auto !important;
-      width:auto !important;
-      max-width:none !important;
-    }
-    #bpmInput{
-      width:56px !important;          /* compact */
-      min-width:56px !important;
-      max-width:56px !important;
-      padding:6px 6px !important;
-      text-align:center !important;
-      font-weight:900 !important;
-    }
+  /* ===== BPM: actually compact ===== */
+  #bpmInput{
+    width:40px !important;
+    min-width:40px !important;
+    max-width:40px !important;
+    padding:6px 4px !important;
+    text-align:center !important;
+    font-weight:900 !important;
+  }
 
-    /* ===== CAPO/STEP input: compact ===== */
-    #capoInput{
-      width:56px !important;
-      min-width:56px !important;
-      max-width:56px !important;
-      padding:6px 6px !important;
-      text-align:center !important;
-      font-weight:900 !important;
-    }
+  /* ===== CAPO/STEP input: keep compact ===== */
+  #capoInput{
+    width:56px !important;
+    min-width:56px !important;
+    max-width:56px !important;
+    padding:6px 6px !important;
+    text-align:center !important;
+    font-weight:900 !important;
+  }
 
-    /* ===== CAPO/STEP vertical pill: stays INLINE next to input ===== */
-    #capoStepToggle{
-      display:inline-flex !important;
-      flex:0 0 auto !important;
+  /* ===== KEY output: compact so it fits ===== */
+  #keyOutput{
+    width:56px !important;
+    min-width:56px !important;
+    max-width:72px !important;
+    text-align:center !important;
+    font-weight:900 !important;
+  }
 
-      width:28px !important;
-      height:48px !important;
-      padding:0 !important;
-      margin-left:6px !important;
+  /* ===== CAPO/STEP pill button created by app.js ===== */
+  #capoStepToggle{
+    display:inline-flex !important;
+    flex:0 0 auto !important;
 
-      border-radius:999px !important;
-      border:1px solid rgba(0,0,0,.18) !important;
-      background:#fff !important;
+    width:26px !important;
+    height:34px !important;
+    padding:0 !important;
+    margin-left:0 !important;
 
-      align-items:center !important;
-      justify-content:center !important;
+    border-radius:999px !important;
+    border:1px solid rgba(0,0,0,.18) !important;
+    background:#fff !important;
 
-      /* text rendering */
-      writing-mode:vertical-rl !important;
-      transform:rotate(180deg) !important;
+    align-items:center !important;
+    justify-content:center !important;
 
-      font-size:11px !important;
-      font-weight:900 !important;
-      letter-spacing:1px !important;
-      line-height:1 !important;
+    writing-mode:vertical-rl !important;
+    transform:rotate(180deg) !important;
 
-      white-space:nowrap !important;
-      overflow:hidden !important;
-    }
-  `;
+    font-size:11px !important;
+    font-weight:900 !important;
+    letter-spacing:1px !important;
+    line-height:1 !important;
+
+    white-space:nowrap !important;
+    overflow:hidden !important;
+  }
+`;
   document.head.appendChild(style);
 }
 
