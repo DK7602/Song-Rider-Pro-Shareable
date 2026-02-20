@@ -5128,36 +5128,74 @@ function wire(){
   // ✅ create the CAPO/STEP pill + force inline wrap
   ensureCapoStepToggle();
   injectHeaderControlTightStyle();
-  if(el.capoInput){
-    // iOS/Android “Go” / Enter key: prevent weird submit/round behavior
-    el.capoInput.addEventListener("keydown", (e) => {
-      if(e.key === "Enter"){
-        e.preventDefault();
-        e.stopPropagation();
-        el.capoInput.blur(); // triggers commit on blur below
+// ===== CAPO / STEP input (mode-aware, supports .5 in STEP) =====
+function roundToHalf(n){
+  return Math.round(n * 2) / 2;
+}
+
+function commitCapoOrStepFromInput(){
+  const mode = state.transposeMode || "capo";
+  const raw = parseFloat(el.capoInput.value);
+  let v = Number.isFinite(raw) ? raw : 0;
+
+  if(mode === "capo"){
+    v = clamp(Math.round(v), 0, 12);
+    state.capo = v;
+    if(state.project) state.project.capo = v;
+    el.capoInput.step = "1";
+    el.capoInput.inputMode = "numeric";
+    el.capoInput.value = String(v);
+  }else{
+    v = clamp(roundToHalf(v), -24, 24);
+    state.steps = v;
+    if(state.project) state.project.steps = v;
+    el.capoInput.step = "0.5";
+    el.capoInput.inputMode = "decimal";
+    el.capoInput.value = String(v);
+  }
+
+  if(state.project) upsertProject(state.project);
+  refreshDisplayedNoteCells();
+  updateKeyFromAllNotes();
+  updateFullIfVisible();
+  ensureCapoStepToggle(); // ✅ re-paint label CAPO/STEP every commit
+}
+if(el.capoInput){
+  el.capoInput.addEventListener("keydown", (e) => {
+    if(e.key === "Enter"){
+      e.preventDefault();
+      e.stopPropagation();
+      el.capoInput.blur();
+    }
+  });
+
+  el.capoInput.addEventListener("input", () => {
+    const mode = state.transposeMode || "capo";
+    const raw = parseFloat(el.capoInput.value);
+    const v = Number.isFinite(raw) ? raw : 0;
+
+    editProject("transposeAmount", () => {
+      if(mode === "capo"){
+        state.capo = clamp(v, 0, 12);
+        if(state.project) state.project.capo = state.capo;
+      }else{
+        state.steps = clamp(v, -24, 24);
+        if(state.project) state.project.steps = state.steps;
       }
     });
 
-    // commit on blur/change (more stable on mobile)
-    el.capoInput.addEventListener("change", () => {
-      editProject("capoOrStep", () => {
-        commitCapoOrStepFromInput();
-      });
-    });
+    refreshDisplayedNoteCells();
+    updateKeyFromAllNotes();
+  });
 
-    el.capoInput.addEventListener("blur", () => {
-      editProject("capoOrStep", () => {
-        commitCapoOrStepFromInput();
-      });
-    });
+  el.capoInput.addEventListener("change", () => {
+    editProject("capoOrStep", () => commitCapoOrStepFromInput());
+  });
 
-    // optional: live update without snapping
-    el.capoInput.addEventListener("input", () => {
-      // do NOT parseInt here; just let the user type
-      // (you can still update preview/key if you want, but don’t rewrite the value)
-    });
-  }
-
+  el.capoInput.addEventListener("blur", () => {
+    editProject("capoOrStep", () => commitCapoOrStepFromInput());
+  });
+}
   // Keyboard shortcuts (don’t trigger while typing in inputs/textareas)
   document.addEventListener("keydown", (e) => {
     const a = document.activeElement;
