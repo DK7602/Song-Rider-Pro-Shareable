@@ -3760,7 +3760,6 @@ card.appendChild(delBtn);
         const rawNow = String(inp.value || "").trim();
         inp.dataset.raw = rawNow;
         line.notes[i] = rawNow;
-pushHistory("note");
 
         upsertProject(state.project);
         updateKeyFromAllNotes();
