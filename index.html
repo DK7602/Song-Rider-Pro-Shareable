@@ -181,6 +181,14 @@
     #panelBody .row.nowrap > *{
   min-width:0;      /* 🔥 THIS is the real fix */
 }
+    /* ✅ keep header row items from pushing Key off-screen */
+#panelBody .row.nowrap{
+  min-width:0;
+}
+
+#panelBody .row.nowrap > *{
+  min-width:0;
+}
     .pill{
       border:1px solid #111;
       background:#111;
@@ -257,7 +265,18 @@
   background:#fff;
   flex:0 0 auto;
 }
+/* ✅ BPM compact (prevents right-side overflow) */
+#bpmInput{
+  width:40px !important;
+  min-width:40px !important;
+  max-width:40px !important;
+}
 
+.tinyCombo{
+  padding:0 8px !important;
+  gap:6px !important;
+  flex:0 0 auto !important;
+}
 .tinyCombo .tinyLbl{
   font-size:10px;
   font-weight:1100;
@@ -287,7 +306,7 @@
  }
     
 @media (min-width: 420px){
-  .tinyField.key input{ width:78px; }  /* ✅ a little bigger on wider phones */
+  .tinyField.key input{ width:72px; }  /* ✅ a little bigger on wider phones */
 }
 
     .tinyField input[readonly]{ background:#f6f6f7; }
@@ -719,8 +738,8 @@
       user-select:none;
       font-size:13px;
     }
- /* =========================
-   CAPO / STEP TOGGLE (vertical letters + shows STEP)
+/* =========================
+   CAPO / STEP TOGGLE (vertical letters, always visible)
 ========================= */
 .capoStepWrap{
   display:flex;
@@ -732,18 +751,19 @@
 .capoStepToggle{
   height:34px;
   display:flex;
-  flex-direction:column;         /* stacks CAPO over STEP */
+  flex-direction:row;            /* ✅ side-by-side (not stacked) */
   border:1px solid rgba(0,0,0,.12);
   background:#fff;
   border-radius:12px;
   overflow:hidden;
+  flex:0 0 auto;
 }
 
 .capoStepToggle .cstOpt{
-  flex:1;
-  width:26px;                    /* narrow pill */
+  width:24px;                    /* ✅ enough width to show vertical text */
+  height:34px;
   border:none;
-  background:transparent;
+  background:#fff;
   cursor:pointer;
   user-select:none;
 
@@ -755,15 +775,17 @@
   font-size:10px;
   letter-spacing:.10em;
   line-height:1;
+
   display:flex;
   align-items:center;
   justify-content:center;
-  padding:0;
+
+  color:#111;                    /* ✅ force visible */
 }
 
 .capoStepToggle .cstOpt.active{
   background:#111;
-  color:#fff;
+  color:#fff;                    /* ✅ force visible */
 }
 /* =========================
    KEY WINDOW: keep on-screen (CSS safety net)
