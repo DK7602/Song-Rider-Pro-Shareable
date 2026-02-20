@@ -3648,7 +3648,6 @@ delBtn.addEventListener("click", (e) => {
   e.preventDefault();
   e.stopPropagation();
 
-  // If it's the only card, clear it instead of deleting
   if(arr.length <= 1){
     if(!confirm("Clear this card?")) return;
     arr[0] = newLine();
@@ -3656,6 +3655,9 @@ delBtn.addEventListener("click", (e) => {
     if(!confirm(`Delete card ${idx+1} from ${state.currentSection}?`)) return;
     arr.splice(idx, 1);
   }
+
+  // ✅ NEW: Cards -> FullText sync
+  syncFullTextFromSections();
 
   upsertProject(state.project);
   pushHistory("deleteCard");
