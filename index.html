@@ -178,12 +178,8 @@
   gap:6px;
   min-width:0;                 /* 🔥 allows shrinking */
 }
-    #panelBody .row.nowrap > *{
-  min-width:0;      /* 🔥 THIS is the real fix */
-}
-    /* ✅ keep header row items from pushing Key off-screen */
-#panelBody .row.nowrap{
-  min-width:0;
+   /* ✅ allow children in the top header row to shrink instead of pushing Key off-screen */
+#panelBody .row.nowrap > *{ min-width:0; } 
 }
 
 #panelBody .row.nowrap > *{
