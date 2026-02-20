@@ -3702,6 +3702,8 @@ delBtn.addEventListener("click", (e) => {
   e.preventDefault();
   e.stopPropagation();
 
+  editProject("deleteCard", () => {
+
   if(arr.length <= 1){
     if(!confirm("Clear this card?")) return;
     arr[0] = newLine();
@@ -3709,6 +3711,10 @@ delBtn.addEventListener("click", (e) => {
     if(!confirm(`Delete card ${idx+1} from ${state.currentSection}?`)) return;
     arr.splice(idx, 1);
   }
+
+  // keep Full page in sync
+  syncFullTextFromSections();
+});
 
   editProject("deleteCard", () => {
   syncFullTextFromSections();
