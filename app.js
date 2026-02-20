@@ -261,10 +261,16 @@ let lastActiveCardEl = null;
 document.addEventListener("focusin", (e) => {
   const t = e.target;
 
-  if(t && t.tagName === "TEXTAREA" && t.classList.contains("lyrics")){
+  // ✅ Track BOTH card lyrics textarea AND Full textarea
+  if(t && t.tagName === "TEXTAREA" && (t.classList.contains("lyrics") || t.classList.contains("fullBox"))){
     lastLyricsTextarea = t;
-    const card = t.closest(".card");
-    if(card) lastActiveCardEl = card;
+
+    // Only set active card when it's a card textarea
+    if(t.classList.contains("lyrics")){
+      const card = t.closest(".card");
+      if(card) lastActiveCardEl = card;
+    }
+
     refreshRhymesFromActive();
     return;
   }
@@ -274,6 +280,7 @@ document.addEventListener("focusin", (e) => {
     if(card) lastActiveCardEl = card;
   }
 });
+
 
 document.addEventListener("pointerdown", (e) => {
   const card = e.target && e.target.closest ? e.target.closest(".card") : null;
@@ -3567,6 +3574,14 @@ if(state.currentSection === "Full"){
 
   const ta = document.createElement("textarea");
   ta.className = "fullBox";
+  ta.addEventListener("focus", () => {
+  lastLyricsTextarea = ta;     // ✅ so rhyme taps insert into Full view
+  refreshRhymesFromActive();
+});
+ta.addEventListener("click", () => {
+  lastLyricsTextarea = ta;     // ✅ cursor moves, seed word changes
+  refreshRhymesFromActive();
+});
   ta.readOnly = false;
   ta.placeholder =
 `VERSE 1
@@ -3822,70 +3837,59 @@ card.appendChild(delBtn);
       beatsRow.appendChild(inp);
     }
 
-    lyr.addEventListener("input", () => {
-     editProject("lyrics", () => {
-  line.lyrics = lyr.value;
-});
+   lyr.addEventListener("input", () => {
+  editProject("lyrics", () => {
+    // 1) set lyrics
+    line.lyrics = lyr.value;
 
-// ✅ syll pill text + glow band
-updateSyllPill(syll, line.lyrics || "");
-
-updateFullIfVisible();
-
-refreshRhymesFromActive();
-
-// ✅ AutoSplit stays ON, but "/" overrides this one line
-if(state.autoSplit){
-  applyBeatsFromLyrics(line);
-
-  for(let k=0;k<4;k++){
-    beatInputs[k].value = line.beats[k] || "";
-  }
-
-  updateFullIfVisible();
-}
-
-
-    if(state.autoSplit && lyr.value.includes("\n")){
-  const parts = lyr.value.split("\n");
-  const first = parts.shift();
-  line.lyrics = first;
-
-  // ✅ update current card beats & pill after trimming to first line
-  updateSyllPill(syll, line.lyrics || "");
-  applyBeatsFromLyrics(line);
-
-  // refresh the visible beat boxes for the current card
-  for(let k=0;k<4;k++){
-    beatInputs[k].value = line.beats[k] || "";
-  }
-
-  const rest = parts.join("\n").trim();
-
-  if(rest){
-    const nl = newLine();
-    nl.lyrics = rest;
-
-    // ✅ new card also respects "/" manual override if present
+    // 2) autosplit beats / manual slash override
     if(state.autoSplit){
-      applyBeatsFromLyrics(nl);
+      applyBeatsFromLyrics(line);
     }
 
-    arr.splice(idx+1, 0, nl);
-    syncFullTextFromSections();
-  }
- 
+    // 3) If user pasted multiple lines, split into new card(s)
+    if(state.autoSplit && String(line.lyrics || "").includes("\n")){
+      const parts = String(line.lyrics || "").split("\n");
+      const first = parts.shift() || "";
+      line.lyrics = first;
 
-        
-        upsertProject(state.project);
-        renderSheet();
-        updateFullIfVisible();
-        updateKeyFromAllNotes();
-        clearTick(); applyTick();
-        refreshDisplayedNoteCells();
-        refreshRhymesFromActive();
+      // update beats for trimmed first line
+      if(state.autoSplit) applyBeatsFromLyrics(line);
+
+      const rest = parts.join("\n").trim();
+      if(rest){
+        const nl = newLine();
+        nl.lyrics = rest;
+        if(state.autoSplit) applyBeatsFromLyrics(nl);
+        arr.splice(idx+1, 0, nl);
       }
-    });
+    }
+
+    // ✅ THE FIX: keep Full view text accurate for every card edit
+    syncFullTextFromSections();
+  });
+
+  // UI updates (no saving needed here; editProject already saves)
+  updateSyllPill(syll, line.lyrics || "");
+
+  // refresh beat boxes from model (in case autosplit/manual changed)
+  if(state.autoSplit){
+    for(let k=0;k<4;k++){
+      beatInputs[k].value = line.beats[k] || "";
+    }
+  }
+
+  refreshRhymesFromActive();
+
+  // If we split into new cards, rerender so you see them immediately
+  if(String(lyr.value || "").includes("\n")){
+    renderSheet();
+    updateKeyFromAllNotes();
+    clearTick(); applyTick();
+    refreshDisplayedNoteCells();
+    refreshRhymesFromActive();
+  }
+});
 
     card.appendChild(top);
     card.appendChild(notesRow);
@@ -4521,6 +4525,14 @@ function getLastWord(text){
 function getSeedFromTextarea(ta){
   if(!ta) return "";
 
+  // ✅ FULL view: seed from text before cursor (last word)
+  if(ta.classList && ta.classList.contains("fullBox")){
+    const pos = (typeof ta.selectionStart === "number") ? ta.selectionStart : (ta.value || "").length;
+    const before = String(ta.value || "").slice(0, pos);
+    return getLastWord(before) || "";
+  }
+
+  // CARD view: prefer previous card's last word, else current last word
   const card = ta.closest(".card");
   if(card){
     const allCards = Array.from(el.sheetBody.querySelectorAll(".card"));
@@ -4566,8 +4578,14 @@ async function fetchDatamuseNearRhymes(word, max = 24){
 }
 
 function insertWordIntoLyrics(word){
+  // ✅ Use the currently active textarea if it’s lyrics or fullBox
+  const active = document.activeElement;
+  if(active && active.tagName === "TEXTAREA" && (active.classList.contains("lyrics") || active.classList.contains("fullBox"))){
+    lastLyricsTextarea = active;
+  }
+
   if(!lastLyricsTextarea){
-    const first = el.sheetBody.querySelector("textarea.lyrics");
+    const first = el.sheetBody.querySelector("textarea.lyrics") || el.sheetBody.querySelector("textarea.fullBox");
     if(first) lastLyricsTextarea = first;
   }
   if(!lastLyricsTextarea) return;
@@ -4588,10 +4606,12 @@ function insertWordIntoLyrics(word){
   ta.value = before + insert + after;
 
   const newPos = (before + insert).length;
-  ta.selectionStart = ta.selectionEnd = newPos;
+  try{ ta.selectionStart = ta.selectionEnd = newPos; }catch{}
 
+  // ✅ Trigger normal input pipeline (cards OR full view)
   ta.dispatchEvent(new Event("input", { bubbles:true }));
 }
+
 
 async function renderRhymes(seed){
   const word = normalizeWord(seed);
