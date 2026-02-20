@@ -5041,7 +5041,12 @@ function wire(){
   el.mRecordBtn.addEventListener("click", toggleRecording);
 
   el.sortSelect.addEventListener("change", renderProjectsDropdown);
-  el.projectSelect.addEventListener("change", () => loadProjectById(el.projectSelect.value));
+  el.sortSelect.addEventListener("change", renderProjectsDropdown);
+
+  el.projectSelect.addEventListener("change", () => {
+    const id = el.projectSelect.value;
+    loadProjectById(id);
+  });
 
   el.newProjectBtn.addEventListener("click", () => {
     const name = prompt("New project name:", "New Song");
