@@ -3607,22 +3607,26 @@ ta.value = state.project.fullText || "";
 
   let tmr = null;
   ta.addEventListener("input", () => {
-    state.project.fullText = ta.value;
-pushHistory("fullText");
+  // keep live text in memory immediately (no history yet)
+  state.project.fullText = ta.value;
 
-    // debounce so it doesn’t lag while typing
-    if(tmr) clearTimeout(tmr);
-    tmr = setTimeout(() => {
+  // debounce so it doesn’t lag while typing
+  if(tmr) clearTimeout(tmr);
+  tmr = setTimeout(() => {
+    // ✅ snapshot BEFORE changes (Undo works)
+    editProject("fullText", () => {
+      state.project.fullText = ta.value;
       applyFullTextToProjectSections(state.project.fullText || "");
-      upsertProject(state.project);
-      updateKeyFromAllNotes();
-      // don’t renderSheet() here (would move cursor)
-    }, 180);
-  });
+    });
+
+    updateKeyFromAllNotes();
+    // don’t renderSheet() here (would move cursor)
+  }, 180);
+});
 
   // On first open, make sure cards match the full text once
   applyFullTextToProjectSections(state.project.fullText || "");
-  upsertProject(state.project);
+upsertProject(state.project); // ok to keep (no history needed on first open)
 
   wrap.appendChild(ta);
   el.sheetBody.appendChild(wrap);
