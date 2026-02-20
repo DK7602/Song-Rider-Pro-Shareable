@@ -3829,6 +3829,7 @@ if(state.autoSplit){
     }
 
     arr.splice(idx+1, 0, nl);
+    syncFullTextFromSections();
   }
  
 
