@@ -3449,8 +3449,12 @@ function ensureFullHeadingsPresent(fullText){
   const missing = FULL_EDIT_SECTIONS.filter(h => !present.has(h));
   if(!missing.length) return text;
 
-  const suffix = (text.trim().length ? "\n\n" : "") + missing.map(h => `${h}\n`).join("\n");
+  const suffix =
+    (text.trim().length ? "\n\n" : "") +
+    missing.map(h => `${h}\n`).join("\n");
+
   return text.replace(/\s*$/, "") + suffix;
+}
   /***********************
 Cards -> FullText sync
 - Rebuild fullText from current section card lyrics
