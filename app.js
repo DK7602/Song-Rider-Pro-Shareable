@@ -3823,13 +3823,13 @@ card.appendChild(delBtn);
     }
 
     lyr.addEventListener("input", () => {
-     line.lyrics = lyr.value;
-pushHistory("lyrics");
+     editProject("lyrics", () => {
+  line.lyrics = lyr.value;
+});
 
 // ✅ syll pill text + glow band
 updateSyllPill(syll, line.lyrics || "");
 
-upsertProject(state.project);
 updateFullIfVisible();
 
 refreshRhymesFromActive();
@@ -3842,7 +3842,6 @@ if(state.autoSplit){
     beatInputs[k].value = line.beats[k] || "";
   }
 
-  upsertProject(state.project);
   updateFullIfVisible();
 }
 
