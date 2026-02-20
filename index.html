@@ -742,50 +742,30 @@
 /* =========================
    CAPO / STEP TOGGLE (vertical letters, always visible)
 ========================= */
-/* ✅ Capo/Step toggle: visible + vertical + clickable */
-.capoStepWrap{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  flex:0 0 auto;
-}
-
-.capoStepToggle{
+/* ✅ CAPO/STEP pill created by app.js (single button with id capoStepToggle) */
+#capoStepToggle{
+  width:26px;
   height:34px;
-  display:flex;
-  flex-direction:row;     /* side-by-side prevents text clipping */
-  border:1px solid rgba(0,0,0,.12);
+  border-radius:999px;
+  border:1px solid rgba(0,0,0,.18);
   background:#fff;
-  border-radius:12px;
-  overflow:hidden;
-  flex:0 0 auto;
-}
-
-.capoStepToggle .cstOpt{
-  width:28px;
-  height:34px;
-  border:none;
-  background:#fff;
-  cursor:pointer;
-  user-select:none;
+  color:#111;
+  font-weight:1100;
+  font-size:11px;
 
   writing-mode: vertical-rl;
   text-orientation: mixed;
-
-  font-weight:1100;
-  font-size:11px;
-  letter-spacing:.08em;
+  transform: rotate(180deg);
 
   display:flex;
   align-items:center;
   justify-content:center;
-
-  color:#111 !important;
+  padding:0;
+  overflow:hidden;
 }
-
-.capoStepToggle .cstOpt.active{
+#capoStepToggle.on{
   background:#111;
-  color:#fff !important;
+  color:#fff;
 }
 /* =========================
    KEY WINDOW: keep on-screen (CSS safety net)
