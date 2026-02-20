@@ -257,8 +257,16 @@ Active card + active lyrics
 ***********************/
 let lastLyricsTextarea = null;
 let lastActiveCardEl = null;
+  // ✅ IME (Android keyboard) composition guard
+let isComposing = false;
 
-document.addEventListener("focusin", (e) => {
+document.addEventListener("compositionstart", () => {
+  isComposing = true;
+}, true);
+
+document.addEventListener("compositionend", () => {
+  isComposing = false;
+}, true);
   const t = e.target;
 
   if(t && t.tagName === "TEXTAREA" && t.classList.contains("lyrics")){
