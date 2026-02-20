@@ -3771,7 +3771,9 @@ card.appendChild(delBtn);
         inp.dataset.raw = rawNow;
         line.notes[i] = rawNow;
 
-        upsertProject(state.project);
+      editProject("note", () => {
+  // line.notes[i] already set above — just commit snapshot + save
+});
         updateKeyFromAllNotes();
         updateFullIfVisible();
 
