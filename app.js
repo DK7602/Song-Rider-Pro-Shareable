@@ -3702,11 +3702,9 @@ delBtn.addEventListener("click", (e) => {
     arr.splice(idx, 1);
   }
 
-  // ✅ NEW: Cards -> FullText sync
+  editProject("deleteCard", () => {
   syncFullTextFromSections();
-
-  upsertProject(state.project);
-  pushHistory("deleteCard");
+});
   renderSheet();
   updateFullIfVisible();
   updateKeyFromAllNotes();
