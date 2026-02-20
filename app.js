@@ -257,81 +257,73 @@ function injectHeaderControlTightStyle(){
   const style = document.createElement("style");
   style.id = "srpHeaderControlTightStyle";
   style.textContent = `
-    /* Tighten BPM + Transpose row without touching index.html */
+    /* ===== HEADER ROW: never wrap, never stretch ===== */
+    #topControlsRow, .topControlsRow, .headerControls, header .headerControls, header .topControls{
+      display:flex !important;
+      flex-wrap:nowrap !important;
+      align-items:center !important;
+      gap:10px !important;
+      overflow-x:auto !important;
+      -webkit-overflow-scrolling:touch !important;
+    }
+    #topControlsRow > *, .topControlsRow > *, .headerControls > *, header .headerControls > *, header .topControls > *{
+      flex:0 0 auto !important;
+    }
+
+    /* ===== BPM: compact again ===== */
+    #bpmBox, .bpmBox{
+      flex:0 0 auto !important;
+      width:auto !important;
+      max-width:none !important;
+    }
     #bpmInput{
-      width: 64px !important;          /* enough for 220 */
-      padding: 6px 6px !important;     /* less side padding */
-      text-align: center !important;
-      font-weight: 900 !important;
-      /* --- FIX: keep BPM compact (SRP) --- */
-#bpmBox, .bpmBox{
-  flex: 0 0 auto !important;
-  width: 128px !important;
-  max-width: 128px !important;
-}
-#bpmBox input, .bpmBox input{
-  width: 56px !important;
-  min-width: 56px !important;
-  max-width: 56px !important;
-}
-/* fallback: any pill that contains the BPM input */
-header input[data-role="bpm"], header input[name="bpm"], header input#bpmInput{
-  width: 56px !important;
-  min-width: 56px !important;
-  max-width: 56px !important;
-}
-/* --- FIX: prevent top controls row from wrapping --- */
-#topControlsRow, .topControlsRow, .headerControls, header .headerControls, header .topControls{
-  display: flex !important;
-  flex-wrap: nowrap !important;
-  align-items: center !important;
-  overflow-x: auto !important;
-  -webkit-overflow-scrolling: touch !important;
-  gap: 10px !important;
-}
-
-/* keep each control from stretching */
-#topControlsRow > *, .topControlsRow > *, .headerControls > *, header .headerControls > *, header .topControls > *{
-  flex: 0 0 auto !important;
-}
-
-/* keep the vertical pill aligned with the number box */
-#capoStepToggle, .capoStepToggle, .modePill{
-  align-self: center !important;
-  margin-top: 0 !important;
-}
+      width:56px !important;          /* compact */
+      min-width:56px !important;
+      max-width:56px !important;
+      padding:6px 6px !important;
+      text-align:center !important;
+      font-weight:900 !important;
     }
 
+    /* ===== CAPO/STEP input: compact ===== */
     #capoInput{
-      width: 64px !important;          /* matches BPM width */
-      padding: 6px 6px !important;
-      text-align: center !important;
-      font-weight: 900 !important;
+      width:56px !important;
+      min-width:56px !important;
+      max-width:56px !important;
+      padding:6px 6px !important;
+      text-align:center !important;
+      font-weight:900 !important;
     }
 
-    /* Vertical pill toggle between CAPO/STEP */
- #capoStepToggle{
-  width: 28px !important;
-  height: 48px !important;
-  padding: 0 !important;
-  margin-left: 6px !important;
+    /* ===== CAPO/STEP vertical pill: stays INLINE next to input ===== */
+    #capoStepToggle{
+      display:inline-flex !important;
+      flex:0 0 auto !important;
 
-  border-radius: 999px !important;
-  border: 1px solid rgba(0,0,0,.18) !important;
-  background: #fff !important;
+      width:28px !important;
+      height:48px !important;
+      padding:0 !important;
+      margin-left:6px !important;
 
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
+      border-radius:999px !important;
+      border:1px solid rgba(0,0,0,.18) !important;
+      background:#fff !important;
 
-  writing-mode: vertical-rl !important;
-  transform: rotate(180deg);
+      align-items:center !important;
+      justify-content:center !important;
 
-  font-size: 11px !important;
-  font-weight: 1000 !important;
-  letter-spacing: 1px !important;
-  line-height: 1 !important;
-}
+      /* text rendering */
+      writing-mode:vertical-rl !important;
+      transform:rotate(180deg) !important;
+
+      font-size:11px !important;
+      font-weight:900 !important;
+      letter-spacing:1px !important;
+      line-height:1 !important;
+
+      white-space:nowrap !important;
+      overflow:hidden !important;
+    }
   `;
   document.head.appendChild(style);
 }
@@ -3384,9 +3376,8 @@ function updateKeyFromAllNotes(){
   });
 
   const k = keyFromHistogram(hist);
- const semis = getTransposeSemis();
-const transposedPC = (k.pc + (semis % 12) + 12) % 12;
-
+  const semisInt = Math.round(getTransposeSemis()) % 12;   // ✅ key name must be integer semis
+  const transposedPC = ((k.pc + semisInt) % 12 + 12) % 12; // ✅ always 0..11
   el.keyOutput.value = `${PC_TO_NAME[transposedPC]} ${k.mode}`;
 }
 
