@@ -3617,6 +3617,8 @@ addBtn.addEventListener("click", (e) => {
   const insertAt = idx + 1;
   const nl = newLine();
   arr.splice(insertAt, 0, nl);
+  // ✅ keep Full in sync
+syncFullTextFromSections();
 
   upsertProject(state.project);
   pushHistory("addCard");
