@@ -3451,6 +3451,65 @@ function ensureFullHeadingsPresent(fullText){
 
   const suffix = (text.trim().length ? "\n\n" : "") + missing.map(h => `${h}\n`).join("\n");
   return text.replace(/\s*$/, "") + suffix;
+  /***********************
+Cards -> FullText sync
+- Rebuild fullText from current section card lyrics
+- Used when cards are added/deleted/split so Full stays accurate
+***********************/
+let _fullSyncLock = false;
+
+function syncFullTextFromSections(){
+  if(_fullSyncLock) return;
+  if(!state.project) return;
+
+  _fullSyncLock = true;
+  try{
+    const out = [];
+
+    // Build headings + lyrics (blank line between cards)
+    FULL_EDIT_SECTIONS.forEach(sec => {
+      out.push(sec);
+
+      const arr = (state.project.sections && state.project.sections[sec]) ? state.project.sections[sec] : [];
+
+      let wroteAny = false;
+      for(const line of arr){
+        const lyr = String(line?.lyrics || "").trim();
+        if(!lyr) continue;
+        wroteAny = true;
+        out.push(lyr);
+        out.push(""); // blank line = next card
+      }
+
+      // Keep at least one empty line under heading so user can type later
+      if(!wroteAny) out.push("");
+
+      // Extra spacing between sections
+      out.push("");
+    });
+
+    // Clean trailing blank lines (keep file neat)
+    while(out.length && out[out.length - 1] === "") out.pop();
+
+    let text = out.join("\n") + "\n";
+    text = ensureFullHeadingsPresent(text);
+
+    state.project.fullText = text;
+    upsertProject(state.project);
+
+    // If Full page is currently open, update the textarea too
+    if(state.currentSection === "Full"){
+      const ta = document.querySelector("textarea.fullBox");
+      if(ta){
+        const s = ta.selectionStart, e = ta.selectionEnd;
+        ta.value = state.project.fullText || "";
+        try{ ta.selectionStart = s; ta.selectionEnd = e; }catch{}
+      }
+    }
+  } finally {
+    _fullSyncLock = false;
+  }
+}
 }
 function renderSheet(){
   el.sheetTitle.textContent = state.currentSection;
