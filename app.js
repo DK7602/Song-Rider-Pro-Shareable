@@ -4661,7 +4661,11 @@ async function renderRhymes(seed){
     const b = document.createElement("div");
     b.className = "rWord";
     b.textContent = w;
-    b.addEventListener("click", () => insertWordIntoLyrics(w));
+    b.addEventListener("pointerdown", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  insertWordIntoLyrics(w);
+}, { passive:false });
     el.rhymeWords.appendChild(b);
   });
 }
