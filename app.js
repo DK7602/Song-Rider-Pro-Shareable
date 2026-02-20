@@ -462,6 +462,8 @@ function defaultProject(name="New Song"){
   name,
   createdAt: now(),
   updatedAt: now(),
+   transposeMode: "capo",
+steps: 0,
   bpm: 95,
   capo: 0,
   fullText: "",
@@ -508,6 +510,8 @@ function normalizeProject(p){
   if(!p.sections || typeof p.sections !== "object") p.sections = {};
   if(!Number.isFinite(p.bpm)) p.bpm = 95;
   if(!Number.isFinite(p.capo)) p.capo = 0;
+  if(p.transposeMode !== "capo" && p.transposeMode !== "step") p.transposeMode = "capo";
+  if(!Number.isFinite(p.steps)) p.steps = 0;
 
   SECTIONS.filter(s=>s!=="Full").forEach(sec => {
     if(!Array.isArray(p.sections[sec])) p.sections[sec] = [];
@@ -609,6 +613,8 @@ const state = {
   bpm: 95,
   capo: 0,
   autoSplit: true,
+  transposeMode: "capo", // "capo" | "step"
+  steps: 0,              // semitone transpose when in STEP mode
 
   instrument: "piano",
   instrumentOn: false,
@@ -669,6 +675,11 @@ lastAutoBar: -1,
   recMixWired: false,
   recKeepAlive: null,
 };
+  function getTransposeSemis(){
+  if(state.transposeMode === "step") return (state.steps|0);
+  return (state.capo|0); // capo mode
+}
+
 /***********************
 UNDO / REDO (Project History)
 - Tracks meaningful edits to the current project
@@ -697,6 +708,9 @@ function projectSignature(p){
       name: p?.name || "",
       bpm: p?.bpm || 0,
       capo: p?.capo || 0,
+            transposeMode: p?.transposeMode || "capo",
+      steps: p?.steps || 0,
+
       fullText: p?.fullText || "",
       sections: p?.sections || {}
     });
@@ -1923,7 +1937,7 @@ function playSingleNoteForInstrument(rawChord, durMs){
   const ch0 = parseChordToken(rawChord);
   if(!ch0) return;
 
-  const capo = (state.capo|0) % 12;
+ const capo = (getTransposeSemis()|0) % 12;
   const ch = {
     ...ch0,
     rootPC: (ch0.rootPC + capo + 12) % 12,
@@ -2079,7 +2093,7 @@ function playChordForInstrument(rawChord, durMs){
   const ch0 = parseChordToken(rawChord);
   if(!ch0) return;
 
-  const capo = (state.capo|0) % 12;
+  const capo = (getTransposeSemis()|0) % 12;
   const ch = {
     ...ch0,
     rootPC: (ch0.rootPC + capo + 12) % 12,
@@ -2095,14 +2109,11 @@ function playChordForInstrument(rawChord, durMs){
 Transpose display (now chord-aware)
 ***********************/
 function refreshDisplayedNoteCells(){
-  const root = el.sheetBody;
-  if(!root) return;
-  const active = document.activeElement;
+  const semis = (getTransposeSemis()|0) % 12;
 
-  root.querySelectorAll("input.noteCell").forEach(inp => {
-    if(inp === active) return;
-    const raw = String(inp.dataset.raw || "").trim();
-    inp.value = (state.capo ? transposeChordName(raw, state.capo) : raw);
+  document.querySelectorAll(".noteCell").forEach(inp => {
+    const raw = inp.dataset.raw || inp.value || "";
+    inp.value = (semis ? transposeChordName(raw, semis) : raw);
   });
 }
 
@@ -2920,6 +2931,59 @@ function setActive(ids, activeId){
     b.classList.toggle("active", id === activeId);
   });
 }
+function ensureCapoStepToggle(){
+  if(!el.capoInput) return;
+
+  // already added?
+  if(document.getElementById("capoStepToggle")) return;
+
+  const btn = document.createElement("button");
+  btn.id = "capoStepToggle";
+  btn.type = "button";
+  btn.className = "miniIconBtn";
+  btn.style.marginLeft = "6px";
+  btn.style.width = "46px";
+  btn.style.borderRadius = "999px";
+  btn.style.fontSize = "12px";
+  btn.style.fontWeight = "1000";
+  btn.style.padding = "0 10px";
+
+  function paint(){
+    const mode = state.transposeMode || "capo";
+    btn.textContent = (mode === "capo") ? "CAPO" : "STEP";
+    btn.title = (mode === "capo")
+      ? "Capo mode (guitar shapes → sounding chords)"
+      : "Step mode (transpose by semitones)";
+    // adjust input range
+    if(mode === "capo"){
+      el.capoInput.min = "0";
+      el.capoInput.max = "12";
+      el.capoInput.step = "1";
+    }else{
+      el.capoInput.min = "-24";
+      el.capoInput.max = "24";
+      el.capoInput.step = "1";
+    }
+    // show the active value in the same box
+    el.capoInput.value = String(mode === "capo" ? (state.capo|0) : (state.steps|0));
+  }
+
+  btn.addEventListener("click", () => {
+    editProject("transposeMode", () => {
+      state.transposeMode = (state.transposeMode === "capo") ? "step" : "capo";
+      if(state.project){
+        state.project.transposeMode = state.transposeMode;
+      }
+    });
+
+    paint();
+    refreshDisplayedNoteCells();
+    updateKeyFromAllNotes();
+  });
+
+  el.capoInput.insertAdjacentElement("afterend", btn);
+  paint();
+}
 
 function renderNoteLenUI(){
   if(el.instDots) el.instDots.classList.toggle("active", state.noteLenMode === "eighth");
@@ -3210,7 +3274,9 @@ function updateKeyFromAllNotes(){
   });
 
   const k = keyFromHistogram(hist);
-  const transposedPC = (k.pc + (state.capo % 12) + 12) % 12;
+ const semis = getTransposeSemis();
+const transposedPC = (k.pc + (semis % 12) + 12) % 12;
+
   el.keyOutput.value = `${PC_TO_NAME[transposedPC]} ${k.mode}`;
 }
 
@@ -3302,7 +3368,7 @@ function buildFullPreviewText(){
 
       if(!hasNotes && !hasBeats && !hasLyrics) return;
 
-      const aligned = buildAlignedLine(line, state.capo || 0);
+      const aligned = buildAlignedLine(line, getTransposeSemis() || 0);
 
       out.push(`(${idx+1})`);
       out.push(`    ${aligned.notesLine}`);
@@ -3344,7 +3410,7 @@ function buildFullPreviewHtmlDoc(title){
       const hasLyrics = !!lyr;
       if(!hasNotes && !hasBeats && !hasLyrics) return;
 
-      const aligned = buildAlignedLine(line, state.capo || 0);
+      const aligned = buildAlignedLine(line,getTransposeSemis() || 0);
 
       lines.push({ kind:"idx", text:`(${idx+1})` });
       lines.push({ kind:"notes", text:`    ${aligned.notesLine}` });
@@ -4489,9 +4555,22 @@ function applyProjectSettingsToUI(){
 
   state.bpm = clamp(parseInt(state.project.bpm,10) || 95, 40, 220);
   state.capo = clamp(parseInt(state.project.capo,10) || 0, 0, 12);
+  state.transposeMode = state.project.transposeMode || "capo";
+state.steps = clamp(parseInt(state.project.steps,10) || 0, -24, 24);
+
 
   if(el.bpmInput) el.bpmInput.value = String(state.bpm);
-  if(el.capoInput) el.capoInput.value = String(state.capo);
+if(el.bpmInput) el.bpmInput.value = String(state.bpm);
+
+if(el.capoInput){
+  el.capoInput.value = String(
+    state.transposeMode === "capo"
+      ? state.capo
+      : state.steps
+  );
+}
+
+ensureCapoStepToggle();
 
   updateKeyFromAllNotes();
   refreshDisplayedNoteCells();
@@ -4695,6 +4774,7 @@ function updateAudioButtonsUI(){
   refreshDisplayedNoteCells();
   
   updateAudioButtonsUI();
+    ensureCapoStepToggle();
 }
 /***********************
 SECTION paging (swipe left/right)
@@ -4945,25 +5025,23 @@ function wire(){
     refreshDisplayedNoteCells();
   }
 
-  el.capoInput.addEventListener("input", () => {
-    const raw = el.capoInput.value;
-    if(raw === "") return;
+ el.capoInput.addEventListener("input", () => {
+  const mode = state.transposeMode || "capo";
+  const v = parseInt(el.capoInput.value, 10) || 0;
 
-    const n0 = parseInt(raw, 10);
-    if(!Number.isFinite(n0)) return;
-
-    const n = clamp(n0, 0, 12);
-
-    state.capo = n;
-    if(state.project){
-      state.project.capo = n;
-      upsertProject(state.project);
+  editProject("transposeAmount", () => {
+    if(mode === "capo"){
+      state.capo = clamp(v, 0, 12);
+      if(state.project) state.project.capo = state.capo;
+    }else{
+      state.steps = clamp(v, -24, 24);
+      if(state.project) state.project.steps = state.steps;
     }
-
-    updateKeyFromAllNotes();
-    updateFullIfVisible();
-    refreshDisplayedNoteCells();
   });
+
+  refreshDisplayedNoteCells();
+  updateKeyFromAllNotes();
+}); 
 
   el.capoInput.addEventListener("change", commitCapo);
   el.capoInput.addEventListener("blur", commitCapo);
