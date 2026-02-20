@@ -129,6 +129,20 @@ saveBtn: $("saveBtn"),
   rhymeWords: $("rhymeWords"),
   rhymeTitle: $("rhymeTitle")
 };
+  // ✅ SAFETY: ensure Capo/Step toggle labels never get wiped
+(function forceCapoStepLabels(){
+  const wrap = document.getElementById("capoStepToggle");
+  if(!wrap) return;
+  const capoBtn = wrap.querySelector('[data-mode="capo"]');
+  const stepBtn = wrap.querySelector('[data-mode="step"]');
+
+  if(capoBtn) capoBtn.textContent = "CAPO";
+  if(stepBtn) stepBtn.textContent = "STEP";
+
+  // force readable colors just in case CSS got overridden
+  if(capoBtn) capoBtn.style.color = capoBtn.classList.contains("active") ? "#fff" : "#111";
+  if(stepBtn) stepBtn.style.color = stepBtn.classList.contains("active") ? "#fff" : "#111";
+})();
 /***********************
 SRP -> BSP CARD SIZE + FONT MATCH (CSS OVERRIDES)
 - Bigger cards like Beat Sheet Pro
