@@ -715,6 +715,69 @@
       user-select:none;
       font-size:13px;
     }
+ /* =========================
+   CAPO / STEP TOGGLE (vertical letters + shows STEP)
+========================= */
+.capoStepWrap{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex:0 0 auto;
+}
+
+.capoStepToggle{
+  height:34px;
+  display:flex;
+  flex-direction:column;         /* stacks CAPO over STEP */
+  border:1px solid rgba(0,0,0,.12);
+  background:#fff;
+  border-radius:12px;
+  overflow:hidden;
+}
+
+.capoStepToggle .cstOpt{
+  flex:1;
+  width:26px;                    /* narrow pill */
+  border:none;
+  background:transparent;
+  cursor:pointer;
+  user-select:none;
+
+  /* ✅ vertical letters */
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+
+  font-weight:1100;
+  font-size:10px;
+  letter-spacing:.10em;
+  line-height:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:0;
+}
+
+.capoStepToggle .cstOpt.active{
+  background:#111;
+  color:#fff;
+}
+/* =========================
+   KEY WINDOW: keep on-screen (CSS safety net)
+   (works if your key window uses #keyWindow)
+========================= */
+#keyWindow{
+  position:fixed !important;
+  left:50% !important;
+  top: max(12px, env(safe-area-inset-top)) !important;
+  transform: translateX(-50%) !important;
+
+  width:min(520px, calc(100vw - 24px)) !important;
+  max-height: calc(100vh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important;
+  overflow:auto !important;
+
+  z-index:9999 !important;
+  box-sizing:border-box !important;
+} 
   </style>
 </head>
 
@@ -763,7 +826,17 @@
   <span class="tinyLbl">BPM</span>
   <input id="bpmInput" type="number" min="40" max="220" step="1" value="95"/>
 </div>
-          <div class="tinyField"><input id="capoInput" type="number" min="0" max="12" step="1" value="0"/></div>
+        <div class="capoStepWrap">
+  <div id="capoStepToggle" class="capoStepToggle" title="Capo / Step">
+    <button type="button" class="cstOpt active" data-mode="capo" aria-pressed="true">CAPO</button>
+    <button type="button" class="cstOpt" data-mode="step" aria-pressed="false">STEP</button>
+  </div>
+
+  <!-- keep your existing capoInput id because app.js already uses it -->
+  <div class="tinyField">
+    <input id="capoInput" type="number" min="0" max="12" step="1" value="0"/>
+  </div>
+</div>
           <div class="tinyField key"><input id="keyOutput" type="text" readonly value="—"/></div>
         </div>
 
@@ -853,7 +926,35 @@
       setTimeout(syncHeaderH, 300);
     })();
   </script>
-  
+  <script>
+  // Capo/Step toggle wiring (index-level, safe even if app.js also touches it)
+  (function(){
+    const wrap = document.getElementById("capoStepToggle");
+    if(!wrap) return;
+
+    wrap.addEventListener("click", (e)=>{
+      const btn = e.target.closest(".cstOpt[data-mode]");
+      if(!btn) return;
+      const mode = btn.getAttribute("data-mode");
+
+      // Visual state
+      [...wrap.querySelectorAll(".cstOpt")].forEach(b=>{
+        const on = b.getAttribute("data-mode") === mode;
+        b.classList.toggle("active", on);
+        b.setAttribute("aria-pressed", on ? "true" : "false");
+      });
+
+      // Store mode so app.js can read it if needed
+      try{ localStorage.setItem("srp_capoStepMode", mode); }catch{}
+    });
+
+    // restore last state
+    let mode = "capo";
+    try{ mode = localStorage.getItem("srp_capoStepMode") || "capo"; }catch{}
+    const btn = wrap.querySelector(`.cstOpt[data-mode="${mode}"]`);
+    if(btn) btn.click();
+  })();
+</script>
 <script src="./lame.min.js?v=62"></script>
   <script src="./app.js?v=62"></script>
 </body>
