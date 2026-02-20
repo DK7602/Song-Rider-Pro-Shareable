@@ -3812,8 +3812,9 @@ card.appendChild(delBtn);
 
       inp.addEventListener("input", () => {
         line.beats[i] = String(inp.value || "").trim();
-        pushHistory("beat");
-        upsertProject(state.project);
+        editProject("beat", () => {
+  // line.beats[i] already set above
+});
         updateFullIfVisible();
       });
 
