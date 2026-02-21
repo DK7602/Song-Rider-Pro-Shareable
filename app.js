@@ -2438,60 +2438,74 @@ function getCardAtPlayLine(){
   return getNearestVisibleCard() || cards[0];
 }
 
+  function scrollElIntoSheetView(targetEl){
+  const sb = el.sheetBody;
+  if(!sb || !targetEl) return false;
+
+  const padTop = 12;
+
+  // Keep the bottom clear (mini bar + breathing room)
+  const miniH = (el.miniBar && el.miniBar.getBoundingClientRect)
+    ? Math.ceil(el.miniBar.getBoundingClientRect().height || 0)
+    : 0;
+
+  const padBottom = miniH + 18;
+
+  const sbRect = sb.getBoundingClientRect();
+  const r = targetEl.getBoundingClientRect();
+
+  const viewTop = sbRect.top + padTop;
+  const viewBottom = sbRect.bottom - padBottom;
+
+  // Scroll up if target top is above visible window
+  if(r.top < viewTop){
+    const deltaUp = (r.top - viewTop);
+    sb.scrollTop = Math.max(0, Math.round(sb.scrollTop + deltaUp));
+    return true;
+  }
+
+  // Scroll down if target bottom is below visible window
+  if(r.bottom > viewBottom){
+    const deltaDown = (r.bottom - viewBottom);
+    sb.scrollTop = Math.max(0, Math.round(sb.scrollTop + deltaDown));
+    return true;
+  }
+
+  return false;
+  }
 function scrollCardIntoView(card){
   if(!card) return;
 
-  const sb = el.sheetBody;
+  // ✅ If AutoScroll is running, scroll to the ACTIVE BEAT BOX (the yellow-tick target)
+  // This guarantees the highlighted beat box is actually visible.
+  let target = card;
 
-  // If sheetBody is the scroller, scroll inside it (NOT window)
-  if(sb){
-    const padTop = 12;
-
-    // If you have any fixed bottom UI (mini bar etc), account for it:
-    const miniH = (el.miniBar && el.miniBar.getBoundingClientRect)
-      ? Math.ceil(el.miniBar.getBoundingClientRect().height || 0)
-      : 0;
-
-    // Give the bottom some breathing room (mini bar + padding + safe-area)
-    const padBottom = miniH + 16;
-
-    const sbRect = sb.getBoundingClientRect();
-    const r = card.getBoundingClientRect();
-
-    // Visible viewport inside the scroller (in viewport coords)
-    const viewTop = sbRect.top + padTop;
-    const viewBottom = sbRect.bottom - padBottom;
-
-    let nextScrollTop = sb.scrollTop;
-
-    // If card top is above visible area, scroll up
-    if(r.top < viewTop){
-      const deltaUp = (r.top - viewTop);
-      nextScrollTop = Math.max(0, Math.round(sb.scrollTop + deltaUp));
+  try{
+    if(state.autoScrollOn){
+      const beatIdx = Math.floor((state.tick8 % 8) / 2); // 0..3 (4 beat boxes)
+      const beats = card.querySelectorAll("textarea.beatCell");
+      if(beats && beats[beatIdx]) target = beats[beatIdx];
     }
+  }catch{}
 
-    // If card bottom is below visible area, scroll down
-    else if(r.bottom > viewBottom){
-      const deltaDown = (r.bottom - viewBottom);
-      nextScrollTop = Math.max(0, Math.round(sb.scrollTop + deltaDown));
-    }
+  // Prefer scrolling inside sheetBody
+  if(el.sheetBody){
+    // First try to ensure the beat box is visible
+    if(scrollElIntoSheetView(target)) return;
 
-    sb.scrollTop = nextScrollTop;
+    // Fallback: ensure the card itself is visible
+    scrollElIntoSheetView(card);
     return;
   }
 
-  // fallback (window scroll)
+  // Window fallback (rare)
   const yLine = getHeaderBottomY();
-  const r = card.getBoundingClientRect();
-  const cardTopDoc = r.top + window.scrollY;
-  const targetY = Math.max(0, Math.round(cardTopDoc - yLine));
-  try{
-    window.scrollTo({ top: targetY, behavior:"auto" });
-  } catch{
-    window.scrollTo(0, targetY);
-  }
+  const r = target.getBoundingClientRect();
+  const topDoc = r.top + window.scrollY;
+  const targetY = Math.max(0, Math.round(topDoc - yLine));
+  try{ window.scrollTo({ top: targetY, behavior:"auto" }); }
+  catch{ window.scrollTo(0, targetY); }
 }
-
 /***********************
 Tie utilities (across cards)
 ***********************/
