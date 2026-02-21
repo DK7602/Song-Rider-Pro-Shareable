@@ -2436,87 +2436,83 @@ function getCardAtPlayLine(){
   return getNearestVisibleCard() || cards[0];
 }
 
-  function scrollElIntoSheetView(targetEl){
+function offsetTopWithin(elm, ancestor){
+  // offsetTop relative to a scrolling ancestor (sheetBody)
+  let y = 0;
+  let n = elm;
+  while(n && n !== ancestor){
+    y += (n.offsetTop || 0);
+    n = n.offsetParent;
+  }
+  return y;
+}
+
+function scrollCardIntoView(card){
+  if(!card) return;
+
   const sb = el.sheetBody;
-  if(!sb || !targetEl) return false;
+  if(!sb){
+    // window fallback
+    const yLine = getHeaderBottomY();
+    const r = card.getBoundingClientRect();
+    const topDoc = r.top + window.scrollY;
+    const targetY = Math.max(0, Math.round(topDoc - yLine));
+    try{ window.scrollTo({ top: targetY, behavior:"auto" }); }
+    catch{ window.scrollTo(0, targetY); }
+    return;
+  }
 
-  const padTop = 12;
+  // padding inside the scroll viewport
+  const padTopTarget = 12;   // for the tick target
+  const padTopCard   = 12;   // ensures card top is not clipped
 
-  // Keep the bottom clear (mini bar + breathing room)
   const miniH = (el.miniBar && el.miniBar.getBoundingClientRect)
     ? Math.ceil(el.miniBar.getBoundingClientRect().height || 0)
     : 0;
 
   const padBottom = miniH + 18;
 
-  const sbRect = sb.getBoundingClientRect();
-  const r = targetEl.getBoundingClientRect();
-
-  const viewTop = sbRect.top + padTop;
-  const viewBottom = sbRect.bottom - padBottom;
-
-  // Scroll up if target top is above visible window
-  if(r.top < viewTop){
-    const deltaUp = (r.top - viewTop);
-    sb.scrollTop = Math.max(0, Math.round(sb.scrollTop + deltaUp));
-    return true;
+  // Pick the element we MUST keep visible (yellow-tick beat box when auto-scrolling)
+  let targetEl = card;
+  if(state.autoScrollOn){
+    const beatIdx = Math.floor((state.tick8 % 8) / 2); // 0..3
+    const beats = card.querySelectorAll("textarea.beatCell");
+    if(beats && beats[beatIdx]) targetEl = beats[beatIdx];
   }
 
-  // Scroll down if target bottom is below visible window
-  if(r.bottom > viewBottom){
-    const deltaDown = (r.bottom - viewBottom);
-    sb.scrollTop = Math.max(0, Math.round(sb.scrollTop + deltaDown));
-    return true;
-  }
+  const H = sb.clientHeight;
 
-  return false;
-  }
-function scrollCardIntoView(card){
-  if(!card) return;
+  // Compute positions INSIDE the scroll container
+  const cardTop = offsetTopWithin(card, sb);
+  const cardBottom = cardTop + card.offsetHeight;
 
-  const sb = el.sheetBody;
+  const tTop = (targetEl === card) ? cardTop : offsetTopWithin(targetEl, sb);
+  const tBottom = (targetEl === card) ? cardBottom : (tTop + targetEl.offsetHeight);
 
-  // Scroll inside #sheetBody (your actual scroller)
-  if(sb){
-    const padTop = 12;
+  // We need a scrollTop that:
+  // 1) keeps target fully visible
+  // 2) keeps card top visible (no top clipping)
 
-    // keep bottom clear for mini bar + breathing room
-    const miniH = (el.miniBar && el.miniBar.getBoundingClientRect)
-      ? Math.ceil(el.miniBar.getBoundingClientRect().height || 0)
-      : 0;
+  // Minimum scrollTop needed so target bottom is above viewport bottom
+  const minScroll = Math.max(0, Math.ceil(tBottom - (H - padBottom)));
 
-    const padBottom = miniH + 18;
+  // Maximum scrollTop allowed so target top is below viewport top
+  const maxScrollForTarget = Math.max(0, Math.floor(tTop - padTopTarget));
 
-    // Use offsets relative to the scroll container (more reliable than getBoundingClientRect clamping)
-    const top = card.offsetTop;
-    const bottom = top + card.offsetHeight;
+  // Also: maximum scrollTop allowed so card top is below viewport top (prevents clipping)
+  const maxScrollForCardTop = Math.max(0, Math.floor(cardTop - padTopCard));
 
-    const viewTop = sb.scrollTop + padTop;
-    const viewBottom = sb.scrollTop + sb.clientHeight - padBottom;
+  const maxScroll = Math.min(maxScrollForTarget, maxScrollForCardTop);
 
-    // If card is above visible area → scroll up
-    if(top < viewTop){
-      sb.scrollTop = Math.max(0, top - padTop);
-      return;
-    }
+  // If constraints conflict (rare), prioritize keeping the target visible
+  let next = sb.scrollTop;
+  if(next < minScroll) next = minScroll;
+  if(next > maxScroll) next = maxScroll;
 
-    // If card is below visible area → scroll down (align bottom into view)
-    if(bottom > viewBottom){
-      const next = bottom - (sb.clientHeight - padBottom);
-      sb.scrollTop = Math.max(0, next);
-      return;
-    }
+  // If minScroll > maxScroll, we can't satisfy both; pick minScroll (tick wins)
+  if(minScroll > maxScroll) next = minScroll;
 
-    return; // already fully visible
-  }
-
-  // Fallback (window scroll)
-  const yLine = getHeaderBottomY();
-  const r = card.getBoundingClientRect();
-  const cardTopDoc = r.top + window.scrollY;
-  const targetY = Math.max(0, Math.round(cardTopDoc - yLine));
-  try{ window.scrollTo({ top: targetY, behavior:"auto" }); }
-  catch{ window.scrollTo(0, targetY); }
+  sb.scrollTop = next;
 }
 /***********************
 Tie utilities (across cards)
