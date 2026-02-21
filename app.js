@@ -3083,8 +3083,14 @@ function startInstrument(){
   state.audioToken++; // new generation
   updateClock();
 }
+function stopAllMusic(){
+  // stops drum sequencer + instrument clocked playback
+  stopDrums();
+  stopInstrument();
 
-
+  // if MP3-sync is active, stop that too (it can keep tick/horse alive)
+  stopAudioSync();
+}
 /***********************
 UI helpers
 ***********************/
@@ -4684,14 +4690,15 @@ await renderRecordings();
   state.isRecording = true;
   setRecordUI();
 }
-
 async function stopRecording(){
+  // ✅ PANIC STOP: kill drums + instrument + mp3-sync immediately
+  stopAllMusic();
+
   if(!state.rec) return;
   try{ state.rec.stop(); }catch{}
   state.isRecording = false;
   setRecordUI();
 }
-
 async function toggleRecording(){
   try{
     if(state.isRecording) await stopRecording();
