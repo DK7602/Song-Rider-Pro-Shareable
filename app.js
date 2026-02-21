@@ -3028,7 +3028,27 @@ function updateClock(){
   }
 }
 
+function resetAutoScrollToFirstCardOfActivePage(){
+  if(!state.autoScrollOn) return;
+  if(state.currentSection === "Full") return;
 
+  const cards = getCards();
+  if(!cards.length) return;
+
+  let idx = 0;
+  const firstIdx = firstNonBlankCardIndexInDOM();
+  if(firstIdx !== null) idx = firstIdx;
+
+  state.playCardIndex = idx;
+  state.lastAutoBar = -1; // restart bar-advance guard
+  state.tick8 = 0;        // restart the bar clock so we begin at bar 1
+
+  const tgt = cards[idx] || cards[0];
+  if(tgt) scrollCardIntoView(tgt);
+
+  clearTick();
+  applyTick();
+}
 function stopDrums(){
   if(state.drumTimer){
     clearInterval(state.drumTimer);
@@ -3042,6 +3062,8 @@ function startDrums(){
   stopDrums();
   state.drumsOn = true;
   updateClock();
+
+  resetAutoScrollToFirstCardOfActivePage();
 
   const bpm = clamp(state.bpm || 95, 40, 220);
   const stepMs = Math.round((60000 / bpm) / 4);
@@ -3084,6 +3106,8 @@ function startInstrument(){
   ensureCtx();
   state.audioToken++; // new generation
   updateClock();
+
+  resetAutoScrollToFirstCardOfActivePage();
 }
 function stopAllMusic(){
   // stops drum sequencer + instrument clocked playback
