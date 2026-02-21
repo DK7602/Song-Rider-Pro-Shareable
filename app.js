@@ -347,6 +347,7 @@ style.textContent = `
     white-space:nowrap !important;
     overflow:hidden !important;
   }
+  #capoStepToggle.on{ background:#111 !important; color:#fff !important; }
 `;
   document.head.appendChild(style);
 }
@@ -3097,11 +3098,8 @@ function setActive(ids, activeId){
 function ensureCapoStepToggle(){
   if(!el.capoInput) return;
 
-  // if wrap already exists, just ensure button exists + repaint
+  // Wrap input + pill together (side-by-side)
   let wrap = document.getElementById("capoStepWrap");
-  let btn = document.getElementById("capoStepToggle");
-
-  // Create wrap once: forces input + pill to sit side-by-side
   if(!wrap){
     wrap = document.createElement("span");
     wrap.id = "capoStepWrap";
@@ -3109,90 +3107,67 @@ function ensureCapoStepToggle(){
     wrap.style.alignItems = "center";
     wrap.style.gap = "6px";
 
-    // Insert wrap where the input currently is, then move input inside it
     const parent = el.capoInput.parentNode;
     parent.insertBefore(wrap, el.capoInput);
     wrap.appendChild(el.capoInput);
   }else{
-    // ensure input is inside wrap (safety)
     if(el.capoInput.parentNode !== wrap) wrap.appendChild(el.capoInput);
   }
 
-// Create toggle button if missing
-if(!btn){
-  btn = document.createElement("button");
-  btn.id = "capoStepToggle";
-  btn.type = "button";
-  btn.className = "miniIconBtn";
-  wrap.appendChild(btn);
-}
-
-// ✅ ALWAYS wire once, even if btn already existed
-if(!btn.dataset.wired){
-  btn.dataset.wired = "1";
-
-  btn.addEventListener("click", () => {
-    editProject("transposeMode", () => {
-      state.transposeMode = (state.transposeMode === "capo") ? "step" : "capo";
-      if(state.project) state.project.transposeMode = state.transposeMode;
-    });
-
-    // repaint UI based on new mode (this should update pill label + input step)
-    paint();
-
-    // ✅ persist current input value without snapping STEP to int
-    if(state.transposeMode === "capo"){
-      const v = clamp(Math.round(Number(el.capoInput.value) || 0), 0, 12);
-      state.capo = v;
-      if(state.project) state.project.capo = v;
-      el.capoInput.value = String(v);
-    }else{
-      const raw = parseFloat(el.capoInput.value);
-      const v = clamp(Math.round((Number.isFinite(raw) ? raw : 0) * 2) / 2, -24, 24);
-      state.steps = v;
-      if(state.project) state.project.steps = v;
-      el.capoInput.value = String(v);
-    }
-
-    refreshDisplayedNoteCells();
-    updateKeyFromAllNotes();
-    updateFullIfVisible?.();
-  });
-}
-
-  refreshDisplayedNoteCells();
-  updateKeyFromAllNotes();
-});
+  // Create the single pill button if missing
+  let btn = document.getElementById("capoStepToggle");
+  if(!btn){
+    btn = document.createElement("button");
+    btn.id = "capoStepToggle";
+    btn.type = "button";
+    btn.className = "miniIconBtn";
+    wrap.appendChild(btn);
   }else{
-    // ensure btn is in the wrap
     if(btn.parentNode !== wrap) wrap.appendChild(btn);
   }
 
-  function paint(){
-    const mode = state.transposeMode || "capo";
-    const label = (mode === "step") ? "STEP" : "CAPO";
+  // Paint pill + input based on mode
+  function repaint(){
+    const mode = (state.transposeMode === "step") ? "step" : "capo";
+    btn.textContent = (mode === "step") ? "STEP" : "CAPO";
+    btn.setAttribute("aria-label", btn.textContent);
 
-    btn.textContent = label;
-    btn.setAttribute("aria-label", label);
+    // visual
+    btn.classList.toggle("on", mode === "step");
 
+    // input behavior
     if(mode === "capo"){
-      btn.style.background = "#fff";
-      btn.style.color = "#111";
       el.capoInput.step = "1";
       el.capoInput.inputMode = "numeric";
-      el.capoInput.value = String(Math.round(Number(state.capo)||0));
+      el.capoInput.value = String(Number.isFinite(state.capo) ? state.capo : 0);
     }else{
-      btn.style.background = "#111";
-      btn.style.color = "#fff";
       el.capoInput.step = "0.5";
       el.capoInput.inputMode = "decimal";
-      el.capoInput.value = String(state.steps ?? 0);
+      el.capoInput.value = String(Number.isFinite(state.steps) ? state.steps : 0);
     }
   }
 
-  paint();
-}
+  // Always wire once (even if button already existed)
+  if(!btn.dataset.wired){
+    btn.dataset.wired = "1";
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
 
+      editProject("transposeMode", () => {
+        state.transposeMode = (state.transposeMode === "capo") ? "step" : "capo";
+        if(state.project) state.project.transposeMode = state.transposeMode;
+      });
+
+      repaint();
+      refreshDisplayedNoteCells();
+      updateKeyFromAllNotes();
+      updateFullIfVisible?.();
+    });
+  }
+
+  repaint();
+}
 function renderNoteLenUI(){
   if(el.instDots) el.instDots.classList.toggle("active", state.noteLenMode === "eighth");
   if(el.instTieBar) el.instTieBar.classList.toggle("active", state.noteLenMode === "bar");
@@ -5141,6 +5116,39 @@ function wire(){
   // ✅ create the CAPO/STEP pill + force inline wrap
   ensureCapoStepToggle();
   injectHeaderControlTightStyle();
+  // ✅ CAPTURE commit: prevents any other blur/change handlers from snapping .5 to int
+if(el.capoInput){
+  const commitCapoStep_CAPTURE = (e) => {
+    e.stopImmediatePropagation();
+
+    const mode = (state.transposeMode === "step") ? "step" : "capo";
+    let v = parseFloat(el.capoInput.value);
+    if(!Number.isFinite(v)) v = 0;
+
+    if(mode === "capo"){
+      v = clamp(Math.round(v), 0, 12);
+      state.capo = v;
+      if(state.project) state.project.capo = v;
+      el.capoInput.value = String(v);
+    }else{
+      v = clamp(Math.round(v * 2) / 2, -24, 24);
+      state.steps = v;
+      if(state.project) state.project.steps = v;
+      el.capoInput.value = String(v);
+    }
+
+    if(state.project) upsertProject(state.project);
+
+    // keep UI synced
+    ensureCapoStepToggle();
+    refreshDisplayedNoteCells();
+    updateKeyFromAllNotes();
+    updateFullIfVisible?.();
+  };
+
+  el.capoInput.addEventListener("change", commitCapoStep_CAPTURE, true);
+  el.capoInput.addEventListener("blur", commitCapoStep_CAPTURE, true);
+}
 // ===== CAPO / STEP input (mode-aware, supports .5 in STEP) =====
 function roundToHalf(n){
   return Math.round(n * 2) / 2;
