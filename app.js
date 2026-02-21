@@ -145,7 +145,9 @@ function injectBspCardLook(){
   style.textContent = `
     /* ===== REEL-IN CARD LOOK (2 cards visible, smaller text) ===== */
 
-    .cards{ padding-bottom: calc(110vh + env(safe-area-inset-bottom)); }
+    .cards{
+      padding-bottom: 18px;
+    }
 
     .card{
       position: relative !important;      /* needed for + / × positioning */
@@ -2436,84 +2438,39 @@ function getCardAtPlayLine(){
   return getNearestVisibleCard() || cards[0];
 }
 
-function offsetTopWithin(elm, ancestor){
-  // offsetTop relative to a scrolling ancestor (sheetBody)
-  let y = 0;
-  let n = elm;
-  while(n && n !== ancestor){
-    y += (n.offsetTop || 0);
-    n = n.offsetParent;
-  }
-  return y;
-}
 
 function scrollCardIntoView(card){
   if(!card) return;
 
   const sb = el.sheetBody;
-  if(!sb){
-    // window fallback
-    const yLine = getHeaderBottomY();
+
+  // If sheetBody is the scroller, scroll inside it (NOT window)
+  if(sb){
+    const sbRect = sb.getBoundingClientRect();
     const r = card.getBoundingClientRect();
-    const topDoc = r.top + window.scrollY;
-    const targetY = Math.max(0, Math.round(topDoc - yLine));
-    try{ window.scrollTo({ top: targetY, behavior:"auto" }); }
-    catch{ window.scrollTo(0, targetY); }
+
+    // how far the card is from the top of the scroll viewport
+    const delta = (r.top - sbRect.top);
+
+    // target = current scrollTop + delta - padding
+    const pad = 12;
+    const target = Math.max(0, Math.round(sb.scrollTop + delta - pad));
+
+    sb.scrollTop = target;
     return;
   }
 
-  // padding inside the scroll viewport
-  const padTopTarget = 12;   // for the tick target
-  const padTopCard   = 12;   // ensures card top is not clipped
-
-  const miniH = (el.miniBar && el.miniBar.getBoundingClientRect)
-    ? Math.ceil(el.miniBar.getBoundingClientRect().height || 0)
-    : 0;
-
-  const padBottom = miniH + 18;
-
-  // Pick the element we MUST keep visible (yellow-tick beat box when auto-scrolling)
-  let targetEl = card;
-  if(state.autoScrollOn){
-    const beatIdx = Math.floor((state.tick8 % 8) / 2); // 0..3
-    const beats = card.querySelectorAll("textarea.beatCell");
-    if(beats && beats[beatIdx]) targetEl = beats[beatIdx];
-  }
-
-  const H = sb.clientHeight;
-
-  // Compute positions INSIDE the scroll container
-  const cardTop = offsetTopWithin(card, sb);
-  const cardBottom = cardTop + card.offsetHeight;
-
-  const tTop = (targetEl === card) ? cardTop : offsetTopWithin(targetEl, sb);
-  const tBottom = (targetEl === card) ? cardBottom : (tTop + targetEl.offsetHeight);
-
-  // We need a scrollTop that:
-  // 1) keeps target fully visible
-  // 2) keeps card top visible (no top clipping)
-
-  // Minimum scrollTop needed so target bottom is above viewport bottom
-  const minScroll = Math.max(0, Math.ceil(tBottom - (H - padBottom)));
-
-  // Maximum scrollTop allowed so target top is below viewport top
-  const maxScrollForTarget = Math.max(0, Math.floor(tTop - padTopTarget));
-
-  // Also: maximum scrollTop allowed so card top is below viewport top (prevents clipping)
-  const maxScrollForCardTop = Math.max(0, Math.floor(cardTop - padTopCard));
-
-  const maxScroll = Math.min(maxScrollForTarget, maxScrollForCardTop);
-
-  // If constraints conflict (rare), prioritize keeping the target visible
-  let next = sb.scrollTop;
-  if(next < minScroll) next = minScroll;
-  if(next > maxScroll) next = maxScroll;
-
-  // If minScroll > maxScroll, we can't satisfy both; pick minScroll (tick wins)
-  if(minScroll > maxScroll) next = minScroll;
-
-  sb.scrollTop = next;
+  // fallback
+  const yLine = getHeaderBottomY();
+  const r = card.getBoundingClientRect();
+  const cardTopDoc = r.top + window.scrollY;
+  const targetY = Math.max(0, Math.round(cardTopDoc - yLine));
+  try{ window.scrollTo({ top: targetY, behavior:"auto" }); }
+  catch{ window.scrollTo(0, targetY); }
 }
+
+
+
 /***********************
 Tie utilities (across cards)
 ***********************/
@@ -2774,9 +2731,7 @@ function autoAdvanceOnBar(){
       state.playCardIndex = firstIdx;
       const next = cards[state.playCardIndex];
       lastActiveCardEl = next;
-      requestAnimationFrame(() => {
-  scrollCardIntoView(card);
-});
+      scrollCardIntoView(next);
       return;
     }
     // no content in this section at all -> go to next section with content
@@ -2786,9 +2741,9 @@ function autoAdvanceOnBar(){
       state.playCardIndex = nextIdx;
       const next = cards[state.playCardIndex];
       lastActiveCardEl = next;
-      requestAnimationFrame(() => {
-  scrollCardIntoView(card);
-});
+      scrollCardIntoView(next);
+      return;
+    }
     // else: we've reached the end of content in this section -> advance section
   }
 
@@ -2828,13 +2783,15 @@ function autoAdvanceOnBar(){
     const firstIdx = firstNonBlankCardIndexInDOM();
     if(firstIdx !== null) state.playCardIndex = firstIdx;
   }
+
   const next = cards[state.playCardIndex];
-if(next && !cardIsBlank(next)){
-  lastActiveCardEl = next;
-  requestAnimationFrame(() => {
+  if(next && !cardIsBlank(next)){
+    lastActiveCardEl = next;
     scrollCardIntoView(next);
-  });
+  }
 }
+
+
 
 /***********************
 DRUMS + CLOCK (decoupled)
