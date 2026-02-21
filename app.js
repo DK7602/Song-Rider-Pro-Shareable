@@ -2474,33 +2474,47 @@ function getCardAtPlayLine(){
 function scrollCardIntoView(card){
   if(!card) return;
 
-  // ✅ If AutoScroll is running, scroll to the ACTIVE BEAT BOX (the yellow-tick target)
-  // This guarantees the highlighted beat box is actually visible.
-  let target = card;
+  const sb = el.sheetBody;
 
-  try{
-    if(state.autoScrollOn){
-      const beatIdx = Math.floor((state.tick8 % 8) / 2); // 0..3 (4 beat boxes)
-      const beats = card.querySelectorAll("textarea.beatCell");
-      if(beats && beats[beatIdx]) target = beats[beatIdx];
+  // Scroll inside #sheetBody (your actual scroller)
+  if(sb){
+    const padTop = 12;
+
+    // keep bottom clear for mini bar + breathing room
+    const miniH = (el.miniBar && el.miniBar.getBoundingClientRect)
+      ? Math.ceil(el.miniBar.getBoundingClientRect().height || 0)
+      : 0;
+
+    const padBottom = miniH + 18;
+
+    // Use offsets relative to the scroll container (more reliable than getBoundingClientRect clamping)
+    const top = card.offsetTop;
+    const bottom = top + card.offsetHeight;
+
+    const viewTop = sb.scrollTop + padTop;
+    const viewBottom = sb.scrollTop + sb.clientHeight - padBottom;
+
+    // If card is above visible area → scroll up
+    if(top < viewTop){
+      sb.scrollTop = Math.max(0, top - padTop);
+      return;
     }
-  }catch{}
 
-  // Prefer scrolling inside sheetBody
-  if(el.sheetBody){
-    // First try to ensure the beat box is visible
-    if(scrollElIntoSheetView(target)) return;
+    // If card is below visible area → scroll down (align bottom into view)
+    if(bottom > viewBottom){
+      const next = bottom - (sb.clientHeight - padBottom);
+      sb.scrollTop = Math.max(0, next);
+      return;
+    }
 
-    // Fallback: ensure the card itself is visible
-    scrollElIntoSheetView(card);
-    return;
+    return; // already fully visible
   }
 
-  // Window fallback (rare)
+  // Fallback (window scroll)
   const yLine = getHeaderBottomY();
-  const r = target.getBoundingClientRect();
-  const topDoc = r.top + window.scrollY;
-  const targetY = Math.max(0, Math.round(topDoc - yLine));
+  const r = card.getBoundingClientRect();
+  const cardTopDoc = r.top + window.scrollY;
+  const targetY = Math.max(0, Math.round(cardTopDoc - yLine));
   try{ window.scrollTo({ top: targetY, behavior:"auto" }); }
   catch{ window.scrollTo(0, targetY); }
 }
