@@ -419,19 +419,30 @@
       box-shadow:var(--shadow);
       border:1px solid rgba(0,0,0,.06);
       overflow:hidden;
+       position:relative;
 
       flex:1;
       display:flex;
       flex-direction:column;
       min-height:calc(100vh - var(--headerH) - 24px);
     }
+    
+.sheetHeader{
+  /* ✅ keeps VERSE/CHORUS title always visible at top of lower panel */
+  position: sticky;
+  top: calc(var(--headerH) + 8px); /* header height + main padding */
+  z-index: 50;                      /* below header (51), above cards */
+  background: var(--card);
 
-    .sheetHeader{
-      padding:10px 12px;
-      border-bottom:1px solid rgba(0,0,0,.06);
-      display:flex; align-items:center; justify-content:space-between; gap:10px;
-      flex-wrap:wrap;
-    }
+  padding:10px 12px;
+  border-bottom:1px solid rgba(0,0,0,.06);
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  flex-wrap:wrap;
+
+  /* optional: subtle separation when stuck */
+  box-shadow: 0 8px 18px rgba(0,0,0,.06);
+}
+   
     .sheetHeader h2{ margin:0; font-size:14px; font-weight:1100; letter-spacing:.3px; }
     .hint{ font-size:12px; color:var(--muted); font-weight:900; }
 
