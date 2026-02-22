@@ -430,7 +430,7 @@
 .sheetHeader{
   /* ✅ keeps VERSE/CHORUS title always visible at top of lower panel */
   position: sticky;
-  top: calc(var(--headerH) + 12px); /* header height + main padding */
+  top: 0;                 /* ✅ stick to the TOP of the lower panel */
   z-index: 50;                      /* below header (51), above cards */
   background: var(--card);
 
