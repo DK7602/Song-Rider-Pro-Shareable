@@ -430,7 +430,7 @@
 .sheetHeader{
   /* ✅ keeps VERSE/CHORUS title always visible at top of lower panel */
   position: sticky;
-  top: 0;                 /* ✅ stick to the TOP of the lower panel */
+  top: calc(var(--headerH) + 12px); /* header height + main padding */
   z-index: 50;                      /* below header (51), above cards */
   background: var(--card);
 
@@ -928,7 +928,48 @@
   <!-- ✅ tiny helper: measure sticky header height into CSS var -->
 
 <script src="./lame.min.js?v=62"></script>
-  <script src="./app.js?v=62"></script>
-  <script>
+<script src="./app.js?v=62"></script>
+
+<script>
+(() => {
+  const root = document.documentElement;
+  const header = document.querySelector("header");
+  if(!header) return;
+
+  let raf = 0;
+  const syncHeaderH = () => {
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => {
+      const h = Math.ceil(header.getBoundingClientRect().height || 0);
+      root.style.setProperty("--headerH", h + "px");
+    });
+  };
+
+  // initial
+  syncHeaderH();
+
+  // keep updated
+  window.addEventListener("resize", syncHeaderH, { passive:true });
+
+  // updates after Show/Hide toggles
+  const toggleBtn = document.getElementById("togglePanelBtn");
+  if(toggleBtn){
+    toggleBtn.addEventListener("click", () => {
+      // wait for DOM/layout to settle, then measure
+      setTimeout(syncHeaderH, 0);
+      setTimeout(syncHeaderH, 60);
+    });
+  }
+
+  // observe header size changes (covers dynamic rows showing/hiding)
+  if("ResizeObserver" in window){
+    const ro = new ResizeObserver(syncHeaderH);
+    ro.observe(header);
+  }else{
+    const mo = new MutationObserver(syncHeaderH);
+    mo.observe(header, { attributes:true, childList:true, subtree:true });
+  }
+})();
+</script>
 </body>
-  </html>
+</html>
