@@ -423,11 +423,7 @@ function isSectionHeadingLine(line){
   return FULL_EDIT_SECTIONS.includes(t) ? t : null;
 }
 
-// Parse fullText -> { sections: { "VERSE 1":[{lyrics,chords?}...], ... } }
-// ✅ chord-aware:
-//   - supports "chords line above lyric line" blocks
-//   - supports inline chords like: [G]Amazing [D]Grace  OR  (G)Amazing (D)Grace
-//   - supports simple chord-only lines like: G   D/F#   Em7
+// Parse fullText -> { sections: { "VERSE 1":[lyrics1, lyrics2...], ... } }
 function parseFullTextToSectionCards(fullText){
   const text = normalizeLineBreaks(fullText);
   const lines = text.split("\n");
@@ -440,88 +436,18 @@ function parseFullTextToSectionCards(fullText){
 
   let acc = []; // lines accumulating for current card block
 
-  const CHORD_TOKEN_RE = /^[A-G](?:#|b)?(?:m|maj|min|dim|aug|sus|add)?\d*(?:\/[A-G](?:#|b)?)?$/i;
-
-  function isChordToken(tok){
-    const t = String(tok || "").trim();
-    if(!t) return false;
-    const u = t.replace(/^[\[\(\{]+/, "").replace(/[\]\)\}]+$/, "");
-    return CHORD_TOKEN_RE.test(u);
-  }
-
-  function extractInlineChords(line){
-    const chords = [];
-    let cleaned = String(line || "");
-    // chords in [C] (C) {C}
-    cleaned = cleaned.replace(/[\[\(\{]\s*([A-G](?:#|b)?[^\]\)\}]{0,10}?)\s*[\]\)\}]/g, (m, g1) => {
-      const tok = String(g1 || "").trim();
-      if(isChordToken(tok)) chords.push(tok);
-      return " ";
-    });
-    return { cleaned: cleaned.replace(/\s+/g," ").trim(), chords };
-  }
-
-  function lineIsMostlyChords(line){
-    const t = String(line || "").trim();
-    if(!t) return false;
-
-    const bad = t.replace(/[A-Ga-g#b0-9\/\s\-\|\.\(\)\[\]\{\}mMajinSsuadddimaug]+/g, "").trim();
-    if(bad.length >= 2) return false;
-
-    const tokens = t
-      .replace(/[\[\]\(\)\{\}]/g," ")
-      .split(/\s+/)
-      .filter(Boolean);
-
-    if(tokens.length === 0) return false;
-
-    const chordish = tokens.filter(isChordToken).length;
-    return chordish >= Math.max(1, Math.ceil(tokens.length * 0.7));
-  }
-
   function flushCard(){
+    // blank-line ends a card
     const blockLines = acc
-      .map(x => String(x || "").trim())
-      .filter(Boolean);
+  .map(x => String(x || "").trim())
+  .filter(Boolean); // ✅ trims whitespace-only lines so they never become “blank cards”
     acc = [];
     if(!blockLines.length) return;
 
-    const chordsOut = [];
-    const lyricParts = [];
-
-    for(let i=0;i<blockLines.length;i++){
-      const L = blockLines[i];
-
-      // chords line above lyric line
-      if(lineIsMostlyChords(L) && i+1 < blockLines.length && !lineIsMostlyChords(blockLines[i+1])){
-        const chordLine = L
-          .replace(/[\[\]\(\)\{\}]/g," ")
-          .replace(/[|]/g," ")
-          .split(/\s+/)
-          .filter(Boolean)
-          .map(x => x.trim())
-          .filter(isChordToken);
-
-        chordLine.forEach(c => chordsOut.push(c));
-        lyricParts.push(String(blockLines[i+1] || "").trim());
-        i++;
-        continue;
-      }
-
-      // inline chords
-      const { cleaned, chords } = extractInlineChords(L);
-      chords.forEach(c => chordsOut.push(c));
-      if(cleaned) lyricParts.push(cleaned);
-    }
-
-    const lyric = lyricParts.join(" ").trim();
-
-    if(lyric || chordsOut.length){
-      buckets[cur].push({
-        lyrics: lyric,
-        chords: chordsOut.slice(0, 8)
-      });
-    }
+    // IMPORTANT: join with SPACE so we don’t create "\n" inside a card
+    // (your card textarea treats "\n" as “split into new card”)
+    const lyric = blockLines.join(" ").trim();
+    if(lyric) buckets[cur].push(lyric);
   }
 
   for(const rawLine of lines){
@@ -529,6 +455,7 @@ function parseFullTextToSectionCards(fullText){
 
     const heading = isSectionHeadingLine(line);
     if(heading){
+      // finish any pending card in previous section
       flushCard();
       cur = heading;
       continue;
@@ -546,9 +473,10 @@ function parseFullTextToSectionCards(fullText){
   return buckets;
 }
 
-// Merge parsed lyrics/chords into existing project.sections
-// - preserves existing notes when possible
-// - but if the import found chords for a card, it writes them into notes[0..7]
+// Merge parsed lyrics into existing project.sections
+// - preserves existing notes when possible (by index)
+// - updates lyrics
+// - (optional) auto-splits beats from lyrics when AutoSplit is ON
 function applyFullTextToProjectSections(fullText){
   if(!state.project || !state.project.sections) return;
 
@@ -560,20 +488,12 @@ function applyFullTextToProjectSections(fullText){
 
     const next = [];
 
+    // Build up to want.length cards, reusing existing card objects to preserve notes
     for(let i=0; i<want.length; i++){
       const base = have[i] && typeof have[i] === "object" ? have[i] : newLine();
+      base.lyrics = want[i] || "";
 
-      const w = want[i] || {};
-      base.lyrics = String(w.lyrics || "");
-
-      if(Array.isArray(w.chords) && w.chords.length){
-        if(!Array.isArray(base.notes)) base.notes = Array(8).fill("");
-        for(let k=0;k<8;k++){
-          const c = String(w.chords[k] || "").trim();
-          base.notes[k] = c || (base.notes[k] || "");
-        }
-      }
-
+      // keep notes; update beats if autosplit is on
       if(state.autoSplit){
         base.beats = autosplitBeatsFromLyrics(base.lyrics);
       }
@@ -581,14 +501,19 @@ function applyFullTextToProjectSections(fullText){
       next.push(base);
     }
 
+    // SAFETY: if user typed fewer lines than existing, keep any extra cards
+    // that contain NOTES/BEATS so we don’t accidentally wipe chords.
     for(let i=want.length; i<have.length; i++){
       const L = have[i];
-      if(lineHasContent(L)){
+      if(lineHasContent(L)){ // your existing “has notes or beats or lyrics” check
         next.push(L);
       }
     }
 
+    // ensure at least 1 card
     if(next.length < MIN_LINES_PER_SECTION) next.push(newLine());
+
+    // also trim trailing fully blank cards (but keep 1)
     while(next.length > 1 && !lineHasContent(next[next.length - 1])) next.pop();
 
     state.project.sections[sec] = next;
@@ -1200,18 +1125,7 @@ Audio (routed through master bus)
 function ensureCtx(){
   if(!state.ctx){
     state.ctx = new (window.AudioContext || window.webkitAudioContext)();
-// ✅ Android/iOS: unlock WebAudio on first real user gesture
-const unlock = () => {
-  try{
-    if(state.ctx && state.ctx.state === "suspended"){
-      state.ctx.resume().catch(()=>{});
-    }
-  }catch{}
-};
 
-document.addEventListener("touchstart", unlock, { once:true, passive:true });
-document.addEventListener("pointerdown", unlock, { once:true, passive:true });
-document.addEventListener("click", unlock, { once:true, passive:true });
     // safer master levels (prevents harsh “screech” perception on phones)
     state.masterGain = state.ctx.createGain();
     state.masterGain.gain.value = 0.90;
@@ -3975,20 +3889,7 @@ Line 2
 
 CHORUS 1
 ...`;
-// ✅ FULL textarea live parser (fixes paste + chord auto-fill)
-ta.addEventListener("input", debounce(() => {
 
-  if(!state.project) return;
-
-  editProject("fullEdit", () => {
-    state.project.fullText = ta.value;
-    applyFullTextToProjectSections(state.project.fullText || "");
-  });
-
-  updateKeyFromAllNotes();
-  renderAll();
-
-}, 250));
   // ✅ STOP AUTO-POPULATING FULL TEXT
 // (No template gets inserted anymore)
 
@@ -4303,178 +4204,31 @@ card.appendChild(delBtn);
   refreshDisplayedNoteCells();
 }
 async function uploadAudioFile(){
-  // ✅ One button supports:
-  // - Audio files (mp3/wav/m4a): same behavior as before (adds to recordings + can sync)
-  // - PDF files: extracts text -> drops it into Full -> populates cards + chords
-  // - Text files: reads text -> drops it into Full -> populates cards + chords
   const inp = document.createElement("input");
   inp.type = "file";
-  inp.accept = "audio/*,application/pdf,text/plain,.pdf,.txt";
+  inp.accept = "audio/*"; // mp3, wav, m4a (browser dependent)
   inp.click();
 
   inp.onchange = async () => {
     const file = inp.files && inp.files[0];
     if(!file) return;
 
-    const type = String(file.type || "").toLowerCase();
-    const name = String(file.name || "").toLowerCase();
-
-    const isPdf = type === "application/pdf" || name.endsWith(".pdf");
-    const isText = type.startsWith("text/") || name.endsWith(".txt");
-    const isAudio = type.startsWith("audio/") || /\.(mp3|wav|m4a|aac|ogg)$/i.test(name);
-
-    if(isPdf){
-      await importPdfToFull(file);
-      return;
-    }
-    if(isText){
-      const txt = await file.text();
-      await importTextToFull(txt);
-      return;
-    }
-    if(isAudio){
-      const item = {
-        id: uuid(),
-        projectId: state.project?.id || "",
-        kind: "upload",
-        createdAt: now(),
-        title: file.name || "Audio",
-        blob: file,
-        offsetSec: 0
-      };
-
-      await dbPut(item);
-      await renderRecordings();
-      await startAudioSyncFromRec(item);
-      return;
-    }
-
-    alert("Unsupported file. Upload an audio file (.mp3/.wav/.m4a), a .pdf, or a .txt");
-  };
-}
-
-// ----------------------
-// ✅ IMPORT: Text -> Full -> Cards (with chord parsing)
-// ----------------------
-async function importTextToFull(text){
-  if(!state.project) return;
-
-  const cleaned = normalizeLineBreaks(String(text || "")).trim();
-  if(!cleaned){
-    alert("No text found to import.");
-    return;
-  }
-
-  editProject("importText", () => {
-    state.project.fullText = cleaned;
-    applyFullTextToProjectSections(state.project.fullText || "");
-  });
-
-  updateKeyFromAllNotes();
-  renderAll();
-  goToSection("Full");
-}
-
-// ----------------------
-// ✅ IMPORT: PDF -> extract text -> Full -> Cards (with chord parsing)
-// Requires PDF.js (pdfjsLib global)
-// ----------------------
-async function importPdfToFull(file){
-  try{
-    const text = await extractTextFromPdfFile(file);
-    await importTextToFull(text);
-  }catch(err){
-    console.error(err);
-    alert("PDF import failed. If you are offline, PDF.js may not have loaded. Try again with internet or bundle pdf.js locally.");
-  }
-}
-
-async function extractTextFromPdfFile(file){
-  if(!window.pdfjsLib || !pdfjsLib.getDocument){
-    throw new Error("pdfjsLib not found");
-  }
-
-  // PDF.js worker (safe even if it was already set)
-  try{
-    if(!pdfjsLib.GlobalWorkerOptions.workerSrc){
-      pdfjsLib.GlobalWorkerOptions.workerSrc =
-        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js";
-    }
-  }catch{}
-
-  const ab = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
-
-  let out = [];
-  for(let p=1; p<=pdf.numPages; p++){
-    const page = await pdf.getPage(p);
-    const content = await page.getTextContent();
-
-    // sort by Y (desc), then X (asc) to recreate readable lines
-    const items = (content.items || []).map(it => ({
-      str: String(it.str || ""),
-      x: (it.transform && it.transform[4]) ? it.transform[4] : 0,
-      y: (it.transform && it.transform[5]) ? it.transform[5] : 0
-    }));
-
-    items.sort((a,b) => (b.y - a.y) || (a.x - b.x));
-
-    let curY = null;
-    let line = [];
-    const pushLine = () => {
-      const s = line.join(" ").replace(/\s+/g," ").trim();
-      if(s) out.push(s);
-      line = [];
+    const item = {
+      id: uuid(),
+      projectId: state.project?.id || "",
+      kind: "upload",
+      createdAt: now(),
+      title: file.name || "Audio",
+      blob: file,          // File is a Blob
+      offsetSec: 0         // you’ll want a Beat-1 marker button for this
     };
 
-    for(const it of items){
-      if(!it.str.trim()) continue;
+    await dbPut(item);
+    await renderRecordings();
 
-      if(curY === null){
-        curY = it.y;
-      }else if(Math.abs(it.y - curY) > 4){
-        pushLine();
-        curY = it.y;
-      }
-
-      line.push(it.str);
-    }
-    pushLine();
-
-    if(p !== pdf.numPages) out.push(""); // blank line between pages
-  }
-
-  return out.join("\n").trim();
-}
-
-// ----------------------
-// ✅ CLIPBOARD IMPORT
-// - paste a PDF anywhere (Ctrl+V / iOS paste) -> imports
-// - normal text paste continues to work (we do NOT preventDefault)
-// ----------------------
-function installClipboardImport(){
-  document.addEventListener("paste", async (e) => {
-    try{
-      const items = e.clipboardData && e.clipboardData.items ? Array.from(e.clipboardData.items) : [];
-      if(!items.length) return;
-
-      // Prefer PDF file if present
-      for(const it of items){
-        const file = it.getAsFile && it.getAsFile();
-        if(!file) continue;
-
-        const type = String(file.type || "").toLowerCase();
-        const name = String(file.name || "").toLowerCase();
-        const isPdf = type === "application/pdf" || name.endsWith(".pdf");
-        if(isPdf){
-          await importPdfToFull(file);
-          return;
-        }
-      }
-    }catch(err){
-      console.error(err);
-    }
-  });
+    // optional: auto-start sync immediately after upload
+    await startAudioSyncFromRec(item);
+  };
 }
 
 /***********************
@@ -5766,8 +5520,7 @@ injectHeaderMiniIconBtnStyle();
 
   renderNoteLenUI();
   setRecordUI();
- wire();
-installClipboardImport();
+  wire();
   renderAll();
   pushHistory("init"); // seed the first snapshot
 updateUndoRedoUI();
