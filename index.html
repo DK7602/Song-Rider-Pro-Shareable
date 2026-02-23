@@ -428,19 +428,16 @@
     }
     
 .sheetHeader{
-  /* ✅ keeps VERSE/CHORUS title always visible at top of lower panel */
+  /* ✅ stays pinned to the TOP of the LOWER scroll panel (#sheetBody) */
   position: sticky;
-  top: calc(var(--headerH) + 12px); /* header height + main padding */
-  z-index: 50;                      /* below header (51), above cards */
-  background: var(--card);
+  top: 0;
+  z-index: 5;
 
   padding:10px 12px;
+  background: var(--card);
   border-bottom:1px solid rgba(0,0,0,.06);
   display:flex; align-items:center; justify-content:space-between; gap:10px;
   flex-wrap:wrap;
-
-  /* optional: subtle separation when stuck */
-  box-shadow: 0 8px 18px rgba(0,0,0,.06);
 }
    
     .sheetHeader h2{ margin:0; font-size:14px; font-weight:1100; letter-spacing:.3px; }
@@ -903,16 +900,21 @@
     <div class="tabs hidden" id="tabs"></div>
   </header>
 
-  <main>
-    <div class="sheet" id="editorRoot">
+<main>
+  <div class="sheet" id="editorRoot">
+    <!-- ✅ #sheetBody is the LOWER panel scroller; header must be INSIDE it so sticky works -->
+    <div id="sheetBody">
       <div class="sheetHeader">
         <h2 id="sheetTitle">Full</h2>
         <div class="sheetActions" id="sheetActions"></div>
         <div class="hint" id="sheetHint"></div>
       </div>
-      <div id="sheetBody"></div>
+
+      <!-- ✅ app.js renders into this, so the sticky header never gets wiped -->
+      <div id="sheetInner"></div>
     </div>
-  </main>
+  </div>
+</main>
 
   <div class="rBtn" id="rBtn">R</div>
   <div class="rhymeDock" id="rhymeDock">
