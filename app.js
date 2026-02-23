@@ -1200,7 +1200,18 @@ Audio (routed through master bus)
 function ensureCtx(){
   if(!state.ctx){
     state.ctx = new (window.AudioContext || window.webkitAudioContext)();
+// ✅ Android/iOS: unlock WebAudio on first real user gesture
+const unlock = () => {
+  try{
+    if(state.ctx && state.ctx.state === "suspended"){
+      state.ctx.resume().catch(()=>{});
+    }
+  }catch{}
+};
 
+document.addEventListener("touchstart", unlock, { once:true, passive:true });
+document.addEventListener("pointerdown", unlock, { once:true, passive:true });
+document.addEventListener("click", unlock, { once:true, passive:true });
     // safer master levels (prevents harsh “screech” perception on phones)
     state.masterGain = state.ctx.createGain();
     state.masterGain.gain.value = 0.90;
@@ -3964,7 +3975,20 @@ Line 2
 
 CHORUS 1
 ...`;
+// ✅ FULL textarea live parser (fixes paste + chord auto-fill)
+ta.addEventListener("input", debounce(() => {
 
+  if(!state.project) return;
+
+  editProject("fullEdit", () => {
+    state.project.fullText = ta.value;
+    applyFullTextToProjectSections(state.project.fullText || "");
+  });
+
+  updateKeyFromAllNotes();
+  renderAll();
+
+}, 250));
   // ✅ STOP AUTO-POPULATING FULL TEXT
 // (No template gets inserted anymore)
 
