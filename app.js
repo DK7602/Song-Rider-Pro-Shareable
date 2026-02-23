@@ -1587,11 +1587,43 @@ function parseChordToken(raw){
 function midiToFreq(m){
   return 440 * Math.pow(2, (m - 69)/12);
 }
+// Accepts: C, C#, Db, F4, Bb3 (octave optional)
+// Also accepts a trailing natural marker: "n" or "♮" (e.g., F#n, Dn, Bb♮)
+function normalizeNoteToken(s){
+  return String(s||"")
+    .trim()
+    .replace(/♯/g,"#")
+    .replace(/♭/g,"b")
+    .replace(/♮/g,"n")
+    .replace(/\s+/g,"")
+    .replace(/n$/i,""); // strip trailing natural marker
+}
+function isSingleNoteToken(s){
+  // ✅ Single-note tokens must include an octave (e.g., C4, F#3, Bb5)
+  // This prevents plain major chords like "C" or "D#" from being treated as melody beeps.
+  const t = normalizeNoteToken(s);
+  return /^([A-Ga-g])([#b])?(\d)$/.test(t);
+}
 
+// MIDI: C4 = 60. If octave omitted, defaultOct=4.
+function noteTokenToMidi(s, defaultOct=4){
+  const t = normalizeNoteToken(s);
+  const m = t.match(/^([A-Ga-g])([#b])?(\d)$/);
+  if(!m) return null;
+
+  const name = (m[1].toUpperCase() + (m[2]||""));
+  const pc = NOTE_TO_PC[name] ?? null;
+  if(pc === null) return null;
+
+  const oct = (m[3] !== undefined) ? Number(m[3]) : defaultOct;
+  if(!Number.isFinite(oct)) return null;
+
+  return ((oct + 1) * 12) + pc;
+}
 function nearestMidiForPC(pc, targetMidi){
   const t = Math.round(targetMidi);
   const candidates = [];
-  for(let k=-4;k<=4;k++){
+  for(let k=-24;k<=24;k++){
     const m = t + k;
     if(((m % 12) + 12) % 12 === pc) candidates.push(m);
   }
@@ -1690,7 +1722,36 @@ function makeSoftRoom(ctx){
 
   return { in: inG, wet, nodes:[inG,d,fb,lp,wet] };
 }
+/***********************
+PIANO FX (shared chain) — prevents runaway node creation/freezes
+***********************/
+function ensurePianoFx(ctx){
+  if(state._pianoFx && state._pianoFx.ctx === ctx) return state._pianoFx;
 
+  // best-effort disconnect old chain (if any)
+  try{
+    if(state._pianoFx?.nodes){
+      state._pianoFx.nodes.forEach(n => { try{ n.disconnect(); }catch{} });
+    }
+  }catch{}
+
+  const room = makeSoftRoom(ctx);
+
+  const dryBus = ctx.createGain();
+  dryBus.gain.value = 0.95;
+
+  const wet = ctx.createGain();
+  wet.gain.value = 0.26;
+
+  dryBus.connect(getOutNode());
+  dryBus.connect(room.in);
+
+  room.wet.connect(wet);
+  wet.connect(getOutNode());
+
+  state._pianoFx = { ctx, dryBus, wet, room, nodes:[dryBus, wet, ...room.nodes] };
+  return state._pianoFx;
+}
 function makeCabinet(ctx){
   const hp = ctx.createBiquadFilter();
   hp.type = "highpass";
@@ -1903,12 +1964,11 @@ function pianoNote(ctx, freq, durMs, vel=0.9){
 
   const nodes = [out];
 
+  // ✅ Fewer partials = much lighter CPU on phones (prevents freeze on dense chords)
   const partials = [
     {h:1, a:1.00},
-    {h:2, a:0.32},
-    {h:3, a:0.18},
-    {h:4, a:0.10},
-    {h:5, a:0.06}
+    {h:2, a:0.30},
+    {h:3, a:0.16}
   ];
 
   for(const p of partials){
@@ -1917,7 +1977,7 @@ function pianoNote(ctx, freq, durMs, vel=0.9){
 
     const inharm = 1 + (p.h>=3 ? 0.0018 : 0.0008);
     o.type = "sine";
-    o.frequency.value = freq * p.h * inharm;
+    o.frequency.value = clamp(freq * p.h * inharm, 40, 5000);
     o.detune.value = (Math.random()*2-1) * 5;
 
     const a = (0.16 * clamp(vel,0.2,1.0)) * p.a;
@@ -1935,16 +1995,23 @@ function pianoNote(ctx, freq, durMs, vel=0.9){
     nodes.push(o,g);
   }
 
-  // hammer noise
+  // hammer noise (shared buffer: prevents per-note allocations that can freeze mobile browsers)
   const nLen = 0.018;
-  const bufferSize = Math.max(256, Math.floor(ctx.sampleRate * nLen));
-  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-  const data = buffer.getChannelData(0);
-  for(let i=0;i<data.length;i++){
-    data[i] = (Math.random()*2-1) * (1 - i/data.length);
+
+  // ✅ Create once per AudioContext
+  if(!state._pianoHammerBuf || state._pianoHammerBufCtx !== ctx){
+    const bufferSize = Math.max(256, Math.floor(ctx.sampleRate * nLen));
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for(let i=0;i<data.length;i++){
+      data[i] = (Math.random()*2-1) * (1 - i/data.length);
+    }
+    state._pianoHammerBuf = buffer;
+    state._pianoHammerBufCtx = ctx;
   }
+
   const ns = ctx.createBufferSource();
-  ns.buffer = buffer;
+  ns.buffer = state._pianoHammerBuf;
 
   const nf = ctx.createBiquadFilter();
   nf.type = "highpass";
@@ -2126,7 +2193,32 @@ const fracMul = Math.pow(2, (tr.fracSemis / 12));
     scheduleCleanup([n.out], durMs + 6000);
   }
 }
+function playMelodyNoteForInstrument(rawNote, durMs){
+  const midi0 = noteTokenToMidi(rawNote, 4);
+  if(midi0 === null) return;
 
+  const tr = splitTranspose(getTransposeSemis());
+  const fracMul = Math.pow(2, (tr.fracSemis / 12));
+  const midi = midi0 + (tr.intSemis|0);
+  const f = midiToFreq(midi) * fracMul;
+  if(!Number.isFinite(f) || f <= 0) return;
+
+  const ctx = ensureCtx();
+
+  if(state.instrument === "acoustic"){
+    const n = acousticPluckSafe(ctx, f, durMs, 0.95);
+    n.out.connect(getOutNode());
+    scheduleCleanup(n.nodes, durMs + 2200);
+  }else if(state.instrument === "electric"){
+    const n = electricGuitarSafe(ctx, f, durMs, 0.90);
+    n.out.connect(getOutNode());
+    scheduleCleanup([n.out], durMs + 1400);
+  }else{
+    const n = pianoNote(ctx, f, durMs, 0.95);
+    n.out.connect(getOutNode());
+    scheduleCleanup([n.out], durMs + 6000);
+  }
+}
  function playAcousticChord(ch, durMs, fracMul=1){
   const ctx = ensureCtx();
   const token = state.audioToken;
@@ -2164,6 +2256,8 @@ const fracMul = Math.pow(2, (tr.fracSemis / 12));
       if(token !== state.audioToken) return;
       if(!state.instrumentOn) return;
 
+      // guard against bad frequencies that can lock up WebAudio on some mobiles
+      if(!Number.isFinite(f) || f <= 0) return;
       const vel = clamp(0.95 - i*0.10, 0.55, 0.98);
       const n = acousticPluckSafe(ctx, f, durMs, vel);
       n.out.connect(bus);
@@ -2204,6 +2298,8 @@ function playElectricChord(ch, durMs, fracMul=1){
     setTimeout(() => {
       if(token !== state.audioToken) return;
       if(!state.instrumentOn) return;
+      // guard against bad frequencies that can lock up WebAudio on some mobiles
+      if(!Number.isFinite(f) || f <= 0) return;
       const vel = clamp(0.95 - i*0.08, 0.55, 0.98);
       const n = electricGuitarSafe(ctx, f, durMs, vel);
       n.out.connect(dryBus);
@@ -2216,21 +2312,13 @@ function playElectricChord(ch, durMs, fracMul=1){
 
 function playPianoChord(ch, durMs, fracMul=1){
   const ctx = ensureCtx();
-  const room = makeSoftRoom(ctx);
+  const token = state.audioToken;
 
-  const dryBus = ctx.createGain();
-  dryBus.gain.value = 0.95;
-
-  const wet = ctx.createGain();
-  wet.gain.value = 0.26;
-
-  dryBus.connect(getOutNode());
-  dryBus.connect(room.in);
-  room.wet.connect(wet);
-  wet.connect(getOutNode());
+  // ✅ Reuse one shared piano FX chain (prevents freeze from node buildup)
+  const fx = ensurePianoFx(ctx);
 
   const midi = buildPianoVoicing(ch);
- const freqs = midi.map(midiToFreq).map(f => f * (fracMul || 1));
+  const freqs = midi.map(midiToFreq).map(f => f * (fracMul || 1));
 
   const bpm = clamp(state.bpm||95, 40, 220);
   const rollMs = clamp(Math.round(16_000 / bpm), 6, 18);
@@ -2240,17 +2328,23 @@ function playPianoChord(ch, durMs, fracMul=1){
     const delayMs = i * rollMs;
 
     setTimeout(() => {
+      if(token !== state.audioToken) return;
+      if(!state.instrumentOn) return;
+
+      // ✅ Hard guard: never let a bad/NaN frequency lock up audio on some mobiles
+      if(!Number.isFinite(f) || f <= 0) return;
+
       const vel = clamp(0.90 - i*0.06, 0.55, 0.98);
       const n = pianoNote(ctx, f, durMs, vel);
-      n.out.connect(dryBus);
+      n.out.connect(fx.dryBus);
       scheduleCleanup([n.out], durMs + 11_000);
     }, delayMs);
   }
-
-  scheduleCleanup([dryBus,wet, ...room.nodes], durMs + 12_000);
 }
 
+
 function playChordForInstrument(rawChord, durMs){
+  durMs = Math.min(Math.max(80, durMs|0), 12000);
   const ch0 = parseChordToken(rawChord);
   if(!ch0) return;
 
@@ -2494,6 +2588,13 @@ function isRepeatToken(s){
 function isTieToken(s){
   return isDotsToken(s) || isRepeatToken(s);
 }
+function isPlayableToken(raw){
+  // something we can actually "sound": a chord OR a single-note token
+  if(!raw) return false;
+  const t = String(raw).trim();
+  if(isTieToken(t)) return false;
+  return isSingleNoteToken(t) || !!parseChordToken(t);
+}
 
 function findNextNoteForwardFrom(cardEl, startCellIndexPlus1){
   const cards = getCards();
@@ -2509,7 +2610,7 @@ function findNextNoteForwardFrom(cardEl, startCellIndexPlus1){
     const startIdx = (barOffset === 0) ? startCellIndexPlus1 : 0;
     for(let j = startIdx; j < 8; j++){
       const raw = getNoteRawFromCell(cells[j]);
-      if(raw) return { barsAhead: barOffset, cellIndex: j, raw };
+      if(isPlayableToken(raw)) return { barsAhead: barOffset, cellIndex: j, raw };
     }
   }
   return null;
@@ -2531,8 +2632,7 @@ function computeNoteDurEighths(cardEl, cells, nIdx){
   for(let j=nIdx+1;j<8;j++){
   const raw = getNoteRawFromCell(cells[j]);
   if(!raw) continue;
-  if(isTieToken(raw)) continue;        // skip "_" and "..."
-  if(!parseChordToken(raw)) continue;  // skip random text
+  if(!isPlayableToken(raw)) continue;  // skip blanks, "_" / "...", and random text
   next = j;
   break;
 }
@@ -2602,14 +2702,20 @@ function playInstrumentStep(){
     }
     return;
   }
-
+  // ✅ Single-note token (C, F#, Bb3, etc.) = play the exact note (fixes "wrong notes")
+  if(isSingleNoteToken(raw)){
+    playMelodyNoteForInstrument(raw, eighthMs);
+    return;
+  }
   // default chord cell = normal strum
   if(!parseChordToken(raw)) return;
 
   state.lastChordRaw = raw; // remember it for "_" and "..."
 
   const durEighths = computeNoteDurEighths(card, cells, nIdx);
-  const durMs = Math.max(80, durEighths * (state.eighthMs || 300));
+  let durMs = Math.max(80, durEighths * (state.eighthMs || 300));
+  // hard cap to prevent extreme ties from scheduling massive envelopes/timeouts
+  durMs = Math.min(durMs, 12000);
 
   playChordForInstrument(raw, durMs);
 }
