@@ -3587,16 +3587,43 @@ function rotate(arr, t){
   return out;
 }
 function keyFromHistogram(hist){
+
   const hn = norm(hist);
   let best = { score:-1e9, pc:0, mode:"maj" };
+
   for(let t=0;t<12;t++){
     const maj = rotate(MAJOR_PROFILE, t);
     const min = rotate(MINOR_PROFILE, t);
+
     const sMaj = dot(hist, maj)/hn/norm(maj);
     const sMin = dot(hist, min)/hn/norm(min);
-    if(sMaj > best.score) best = { score:sMaj, pc:t, mode:"maj" };
-    if(sMin > best.score) best = { score:sMin, pc:t, mode:"min" };
+
+    if(sMaj > best.score){
+      best = { score:sMaj, pc:t, mode:"maj" };
+    }
+    if(sMin > best.score){
+      best = { score:sMin, pc:t, mode:"min" };
+    }
   }
+
+  // -----------------------------
+  // 🔥 MINOR TONIC OVERRIDE FIX
+  // -----------------------------
+  // If tonic pitch class has strong minor chord presence,
+  // prefer minor mode even if major profile slightly wins.
+
+  const tonicWeight = hist[best.pc] || 0;
+
+  // Compare direct correlation of both modes at tonic
+  const majScore = dot(hist, rotate(MAJOR_PROFILE, best.pc))/hn;
+  const minScore = dot(hist, rotate(MINOR_PROFILE, best.pc))/hn;
+
+  // If minor is close or higher and tonic appears as minor chord,
+  // force minor
+  if(minScore > majScore * 0.92){
+    best.mode = "min";
+  }
+
   return best;
 }
 
