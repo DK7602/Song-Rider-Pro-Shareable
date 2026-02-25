@@ -4057,36 +4057,57 @@ function renderSheetActions(){
     goToSection(nextName);
   });
 
-  const delBtn = document.createElement("button");
+  
   delBtn.className = "cardDel";
   delBtn.type = "button";
   delBtn.textContent = "×";
   delBtn.title = "Delete this page (blank only)";
-  delBtn.addEventListener("click", (e) => {
-    e.preventDefault(); e.stopPropagation();
-    if(!state.project) return;
-    const sec = state.currentSection;
-    if(sec === "Full") return;
+delBtn.addEventListener("click", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
 
-    if(sectionHasContent(sec)){
-      alert("Only blank pages can be deleted.");
-      return;
+  if(!state.project) return;
+  const sec = state.currentSection;
+  if(sec === "Full") return;
+
+  // Only allow deleting blank pages
+  if(sectionHasContent(sec)){
+    alert("Only blank pages can be deleted.");
+    return;
+  }
+
+  if(!confirm(`Delete page "${sec}"?`)) return;
+
+  editProject("deletePage", () => {
+    // 1) Remove from enabled list
+    state.project.enabledSections = (state.project.enabledSections || [])
+      .filter(s => String(s).trim().toUpperCase() !== String(sec).trim().toUpperCase());
+
+    // 2) If it's an EXTRA page (custom), remove it fully
+    if(!SECTIONS.includes(sec)){
+      state.project.extraSections = (state.project.extraSections || [])
+        .filter(s => String(s).trim().toUpperCase() !== String(sec).trim().toUpperCase());
+
+      if(state.project.sections) delete state.project.sections[sec];
+    } else {
+      // 3) Built-in page: keep structure safe (leave an empty card)
+      if(state.project.sections){
+        state.project.sections[sec] = [ newLine() ];
+      }
     }
 
-    if(!confirm(`Delete page "${sec}"?`)) return;
+    // 4) SAFETY: ensure Full can never become blank / broken
+    // Re-sync Full from sections, then guarantee headings exist.
+    syncFullTextFromSections();
+    state.project.fullText = ensureFullHeadingsPresent(state.project.fullText || "");
+  });
 
-    editProject("deletePage", () => {
-      // disable
-      state.project.enabledSections = (state.project.enabledSections||[]).filter(s => String(s).toUpperCase() !== String(sec).toUpperCase());
-
-      // if extra, remove entirely
-      if(!SECTIONS.includes(sec)){
-        state.project.extraSections = (state.project.extraSections||[]).filter(s => String(s).toUpperCase() !== String(sec).toUpperCase());
-        delete state.project.sections[sec];
-      }
-      // keep Full in sync (removes nothing, but keeps headings current)
-      syncFullTextFromSections();
-    });
+  // Move to a safe page that definitely exists
+  const pages = getSectionPages();
+  const idx = pages.indexOf(sec);
+  const fallback = pages[Math.max(0, idx - 1)] || "Full";
+  goToSection(fallback);
+});
 
     // go somewhere safe
     const pages = getSectionPages();
